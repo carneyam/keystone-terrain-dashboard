@@ -69,4 +69,28 @@ map.on('load', async () => {
         duration: 0
     });
 
+    map.on('click', 'trail-fill', (e) => {
+    const feature = e.features[0];
+    const props = feature.properties;
+
+    new mapboxgl.Popup()
+        .setLngLat(e.lngLat)
+        .setHTML(`
+            <strong>${props.current_name ?? 'Unnamed Trail'}</strong><br>
+            Trail ID: ${props.trail_id ?? 'N/A'}<br>
+            Zone: ${props.zone ?? 'N/A'}<br>
+            Difficulty: ${props.difficulty ?? 'N/A'}<br>
+            GIS Acres: ${props.acres_gis ?? 'N/A'}
+        `)
+        .addTo(map);
+});
+
+    map.on('mouseenter', 'trail-fill', () => {
+    map.getCanvas().style.cursor = 'pointer';
+});
+
+map.on('mouseleave', 'trail-fill', () => {
+    map.getCanvas().style.cursor = '';
+});
+
 });
