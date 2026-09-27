@@ -41,4 +41,5 @@ map.on('load', () => {
             'line-width': 1.5
         }
     });
+
 });
