@@ -52,24 +52,24 @@ map.on('load', async () => {
     // Trail click popup
     // -----------------------------------
 
-    map.on('click', 'trail-fill', (e) => {
+map.on('click', 'trail-fill', (e) => {
 
-        const feature = e.features[0];
-        const props = feature.properties;
-        
-        console.log(promps);
+    const feature = e.features[0];
+    const props = feature.properties;
 
-        new mapboxgl.Popup()
-            .setLngLat(e.lngLat)
-            .setHTML(`
-                <strong>${props.trail_name ?? 'Unnamed Trail'}</strong><br>
-                Trail ID: ${props.trail_id ?? 'N/A'}<br>
-                Zone: ${props.mountain_area ?? 'N/A'}<br>
-                Difficulty: ${props.difficulty ?? 'N/A'}<br>
-                GIS Acres: ${props.acres_25_26 ?? 'N/A'}
-            `)
-            .addTo(map);
-    });
+    console.log(props);
+
+    new mapboxgl.Popup()
+        .setLngLat(e.lngLat)
+        .setHTML(`
+            <strong>${props.trail_name ?? 'Unnamed Trail'}</strong><br>
+            Trail ID: ${props.trail_id ?? 'N/A'}<br>
+            Zone: ${props.mountain_area ?? 'N/A'}<br>
+            Difficulty: ${props.difficulty ?? 'N/A'}<br>
+            Acres: ${props.acres_25_26 ?? 'N/A'}
+        `)
+        .addTo(map);
+});
 
     // Change cursor when hovering over a trail
     map.on('mouseenter', 'trail-fill', () => {
