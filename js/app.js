@@ -12,12 +12,16 @@ map.addControl(
     'top-right'
 );
 
-map.on('load', () => {
+map.on('load', async () => {
+
+    // Load the trail GeoJSON
+    const response = await fetch('data/trails.geojson');
+    const trailData = await response.json();
 
     // Add the trail polygons as a GeoJSON source
     map.addSource('trails', {
         type: 'geojson',
-        data: 'data/trails.geojson'
+        data: trailData
     });
 
     // Polygon fill
@@ -42,6 +46,27 @@ map.on('load', () => {
             'line-color': '#1e3a8a',
             'line-width': 1.5
         }
+    });
+
+    // Calculate the full extent of all trail polygons
+    const bounds = new mapboxgl.LngLatBounds();
+
+    function extendBounds(coords) {
+        if (typeof coords[0] === 'number') {
+            bounds.extend(coords);
+        } else {
+            coords.forEach(extendBounds);
+        }
+    }
+
+    trailData.features.forEach(feature => {
+        extendBounds(feature.geometry.coordinates);
+    });
+
+    // Zoom and center the map on the trail system
+    map.fitBounds(bounds, {
+        padding: 40,
+        duration: 0
     });
 
 });
