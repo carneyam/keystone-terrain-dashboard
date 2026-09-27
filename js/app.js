@@ -25,6 +25,7 @@ map.on('load', () => {
         id: 'trail-fill',
         type: 'fill',
         source: 'trails',
+        slot: 'top',
         paint: {
             'fill-color': '#3b82f6',
             'fill-opacity': 0.35
@@ -36,6 +37,7 @@ map.on('load', () => {
         id: 'trail-outline',
         type: 'line',
         source: 'trails',
+        slot: 'top',
         paint: {
             'line-color': '#1e3a8a',
             'line-width': 1.5
