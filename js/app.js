@@ -63,10 +63,11 @@ map.on('click', 'trail-fill', (e) => {
         .setLngLat(e.lngLat)
         .setHTML(`
             <strong>${props.trail_name ?? 'Unnamed Trail'}</strong><br>
-            Trail ID: ${props.trail_id ?? 'N/A'}<br>
             Zone: ${props.mountain_area ?? 'N/A'}<br>
             Difficulty: ${props.difficulty ?? 'N/A'}<br>
             Acres: ${props.acres_25_26 ?? 'N/A'}
+            Trail ID: ${props.trail_id ?? 'N/A'}<br>
+            
         `)
         .addTo(map);
 });
