@@ -14,17 +14,17 @@ map.addControl(
 
 map.on('load', async () => {
 
-    // Load the trail GeoJSON
+    // Load trail GeoJSON
     const response = await fetch('data/trails.geojson');
     const trailData = await response.json();
 
-    // Add the trail polygons as a GeoJSON source
+    // Add trail data source
     map.addSource('trails', {
         type: 'geojson',
         data: trailData
     });
 
-    // Polygon fill
+    // Trail polygon fill
     map.addLayer({
         id: 'trail-fill',
         type: 'fill',
@@ -36,7 +36,7 @@ map.on('load', async () => {
         }
     });
 
-    // Polygon outlines
+    // Trail polygon outline
     map.addLayer({
         id: 'trail-outline',
         type: 'line',
@@ -48,7 +48,40 @@ map.on('load', async () => {
         }
     });
 
-    // Calculate the full extent of all trail polygons
+    // -----------------------------------
+    // Trail click popup
+    // -----------------------------------
+
+    map.on('click', 'trail-fill', (e) => {
+
+        const feature = e.features[0];
+        const props = feature.properties;
+
+        new mapboxgl.Popup()
+            .setLngLat(e.lngLat)
+            .setHTML(`
+                <strong>${props.current_name ?? 'Unnamed Trail'}</strong><br>
+                Trail ID: ${props.trail_id ?? 'N/A'}<br>
+                Zone: ${props.zone ?? 'N/A'}<br>
+                Difficulty: ${props.difficulty ?? 'N/A'}<br>
+                GIS Acres: ${props.acres_gis ?? 'N/A'}
+            `)
+            .addTo(map);
+    });
+
+    // Change cursor when hovering over a trail
+    map.on('mouseenter', 'trail-fill', () => {
+        map.getCanvas().style.cursor = 'pointer';
+    });
+
+    map.on('mouseleave', 'trail-fill', () => {
+        map.getCanvas().style.cursor = '';
+    });
+
+    // -----------------------------------
+    // Fit map to trail extent
+    // -----------------------------------
+
     const bounds = new mapboxgl.LngLatBounds();
 
     function extendBounds(coords) {
@@ -63,34 +96,9 @@ map.on('load', async () => {
         extendBounds(feature.geometry.coordinates);
     });
 
-    // Zoom and center the map on the trail system
     map.fitBounds(bounds, {
         padding: 40,
         duration: 0
     });
-
-    map.on('click', 'trail-fill', (e) => {
-    const feature = e.features[0];
-    const props = feature.properties;
-
-    new mapboxgl.Popup()
-        .setLngLat(e.lngLat)
-        .setHTML(`
-            <strong>${props.current_name ?? 'Unnamed Trail'}</strong><br>
-            Trail ID: ${props.trail_id ?? 'N/A'}<br>
-            Zone: ${props.zone ?? 'N/A'}<br>
-            Difficulty: ${props.difficulty ?? 'N/A'}<br>
-            GIS Acres: ${props.acres_gis ?? 'N/A'}
-        `)
-        .addTo(map);
-});
-
-    map.on('mouseenter', 'trail-fill', () => {
-    map.getCanvas().style.cursor = 'pointer';
-});
-
-map.on('mouseleave', 'trail-fill', () => {
-    map.getCanvas().style.cursor = '';
-});
 
 });
