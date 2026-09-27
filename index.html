@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+
+    <title>Keystone Terrain Dashboard</title>
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+    >
+
+    <!-- Mapbox GL JS -->
+    <link
+        href="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.css"
+        rel="stylesheet"
+    >
+
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="map"></div>
+
+    <script>
+        const map = new mapboxgl.Map({
+            accessToken: pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2JmaWllaGQ2NyJ9._ubQTmLlivNH7Wp3eCSckw,
+            container: 'map',
+
+            // Approximate center of Keystone Resort
+            center: [-105.95, 39.60],
+
+            zoom: 12
+        });
+
+        map.addControl(
+            new mapboxgl.NavigationControl(),
+            'top-right'
+        );
+    </script>
+
+</body>
+</html>
