@@ -1,7 +1,6 @@
 mapboxgl.accessToken = 'pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2JmaWllaGQ2NyJ9._ubQTmLlivNH7Wp3eCSckw';
 
-// First historical date we will test
-const TEST_DATE = '2025-01-15';
+const INITIAL_DATE = '2025-01-15';
 
 const map = new mapboxgl.Map({
     container: 'map',
@@ -99,6 +98,20 @@ map.on('load', async () => {
         fetch('data/trail_status_24-25.csv')
     ]);
 
+    // --------------------------------------------------
+// Date slider interaction
+// --------------------------------------------------
+
+slider.addEventListener('input', () => {
+
+    const selectedIndex =
+        Number(slider.value);
+
+    const selectedDate =
+        dateList[selectedIndex];
+
+    applyDate(selectedDate);
+});
     const trailData = await trailResponse.json();
     const csvText = await statusResponse.text();
 
@@ -109,8 +122,111 @@ map.on('load', async () => {
     // Find records for the test date
     // --------------------------------------------------
 
+    // --------------------------------------------------
+// Build list of available dates
+// --------------------------------------------------
+
+const dateList = [
+    ...new Set(
+        statusData.map(row => row.date)
+    )
+].sort();
+
+
+// Dashboard controls
+const slider = document.getElementById('date-slider');
+const dateLabel = document.getElementById('date-label');
+const firstDateLabel = document.getElementById('first-date-label');
+const lastDateLabel = document.getElementById('last-date-label');
+
+slider.min = 0;
+slider.max = dateList.length - 1;
+
+
+// --------------------------------------------------
+// Friendly date formatting
+// --------------------------------------------------
+
+function formatDate(dateString) {
+
+    const date = new Date(dateString + 'T12:00:00');
+
+    return date.toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+    });
+}
+
+
+firstDateLabel.textContent = formatDate(dateList[0]);
+
+lastDateLabel.textContent =
+    formatDate(dateList[dateList.length - 1]);
+
+
+// --------------------------------------------------
+// Update trail statuses for selected date
+// --------------------------------------------------
+
+function applyDate(selectedDate) {
+
     const selectedDateRecords = statusData.filter(
-        row => row.date === TEST_DATE
+        row => row.date === selectedDate
+    );
+
+    const statusLookup = {};
+
+    selectedDateRecords.forEach(row => {
+        statusLookup[row.trail_id] =
+            row.dashboard_status;
+    });
+
+
+    // Update each trail polygon
+    trailData.features.forEach(feature => {
+
+        const trailID =
+            feature.properties.trail_id;
+
+        feature.properties.dashboard_status =
+            statusLookup[trailID] ?? 'No Data';
+    });
+
+
+    // Update map source if it already exists
+    if (map.getSource('trails')) {
+        map.getSource('trails').setData(trailData);
+    }
+
+
+    // Update visible date
+    dateLabel.textContent =
+        formatDate(selectedDate);
+
+
+    // QA counts
+    const statusCounts = {};
+
+    selectedDateRecords.forEach(row => {
+
+        const status =
+            row.dashboard_status || 'Blank';
+
+        statusCounts[status] =
+            (statusCounts[status] || 0) + 1;
+    });
+
+    console.log(
+        `Records found for ${selectedDate}:`,
+        selectedDateRecords.length
+    );
+
+    console.log(
+        'Status counts:',
+        statusCounts
+    );
+}
     );
 
 
@@ -137,6 +253,19 @@ map.on('load', async () => {
             statusLookup[trailID] ?? 'No Data';
     });
 
+    // Start slider on January 15, 2025
+        let initialIndex =
+            dateList.indexOf(INITIAL_DATE);
+
+        if (initialIndex === -1) {
+            initialIndex = 0;
+}
+
+        slider.value = initialIndex;
+
+
+    // Apply initial historical status
+        applyDate(dateList[initialIndex]);
 
     // --------------------------------------------------
     // Add trail source
