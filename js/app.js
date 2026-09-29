@@ -242,6 +242,7 @@ map.on('load', async () => {
 
         let statusData = [];
         let dateList = [];
+        let currentSeason = INITIAL_SEASON;
 
 
         // ------------------------------------------
@@ -319,7 +320,9 @@ map.on('load', async () => {
             season,
             preferredDate = null
         ) {
-
+            currentSeason = season;
+            seasonSelect.value = season;
+            
             const file =
                 seasonFiles[season];
 
@@ -447,6 +450,10 @@ map.on('load', async () => {
                     dateList[selectedIndex];
 
                 applyDate(selectedDate);
+
+                console.log(
+                    `Slider: ${currentSeason} | ${selectedDate}`
+                );
             }
         );
 
