@@ -1,11 +1,10 @@
 mapboxgl.accessToken = 'pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2JmaWllaGQ2NyJ9._ubQTmLlivNH7Wp3eCSckw';
 
 const INITIAL_DATE = '2025-01-15';
-
 const INITIAL_SEASON = '24-25';
 
 const seasonFiles = {
-    '24-25': 'data/trail_status_24-25.csv'
+    '24-25': 'data/trail_status_24-25.csv',
     '23-24': 'data/trail_status_23-24.csv'
 };
 
