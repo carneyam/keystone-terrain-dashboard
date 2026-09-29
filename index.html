@@ -11,15 +11,16 @@
         content="width=device-width, initial-scale=1"
     >
 
-    <!-- Mapbox GL JS -->
+    <!-- Mapbox GL JS stylesheet -->
     <link
         href="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.css"
         rel="stylesheet"
     >
 
+    <!-- Mapbox GL JS library -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.js"></script>
 
-    <!-- Terrain Dashboard CSS -->
+    <!-- Terrain Dashboard stylesheet -->
     <link
         rel="stylesheet"
         href="css/style.css"
@@ -28,7 +29,12 @@
 
 <body>
 
+    <!-- ==================================================
+         DASHBOARD CONTROLS
+         ================================================== -->
+
     <div id="dashboard-panel">
+
         <h2>Keystone Terrain Dashboard</h2>
 
         <div class="dashboard-row">
@@ -38,7 +44,9 @@
 
         <div class="dashboard-row">
             <strong>Date:</strong>
-            <span id="date-label">January 15, 2025</span>
+            <span id="date-label">
+                January 15, 2025
+            </span>
         </div>
 
         <input
@@ -54,49 +62,70 @@
             <span id="first-date-label"></span>
             <span id="last-date-label"></span>
         </div>
+
     </div>
+
+
+    <!-- ==================================================
+         MAP LEGEND
+         ================================================== -->
 
     <div id="map-legend">
-    <div class="legend-title">Trail Status</div>
 
-    <div class="legend-item">
-        <span class="legend-color open"></span>
-        <span>Open</span>
+        <div class="legend-title">
+            Trail Status
+        </div>
+
+        <div class="legend-item">
+            <span class="legend-color open"></span>
+            <span>Open</span>
+        </div>
+
+        <div class="legend-item">
+            <span class="legend-color groomed"></span>
+            <span>Groomed</span>
+        </div>
+
+        <div class="legend-item">
+            <span class="legend-color closed"></span>
+            <span>Closed</span>
+        </div>
+
+        <div class="legend-item">
+            <span class="legend-color racing"></span>
+            <span>Racing</span>
+        </div>
+
+        <div class="legend-item">
+            <span class="legend-color not-open"></span>
+            <span>Not Open</span>
+        </div>
+
+        <div class="legend-item">
+            <span class="legend-color no-data"></span>
+            <span>No Data / Not Operational</span>
+        </div>
+
+        <div class="legend-note">
+            Status reflects the historical daily terrain report
+            for the selected date. Trails without a matching
+            historical record are shown as
+            No Data / Not Operational.
+        </div>
+
     </div>
 
-    <div class="legend-item">
-        <span class="legend-color groomed"></span>
-        <span>Groomed</span>
-    </div>
 
-    <div class="legend-item">
-        <span class="legend-color closed"></span>
-        <span>Closed</span>
-    </div>
+    <!-- ==================================================
+         MAP
+         ================================================== -->
 
-    <div class="legend-item">
-        <span class="legend-color racing"></span>
-        <span>Racing</span>
-    </div>
-
-    <div class="legend-item">
-        <span class="legend-color not-open"></span>
-        <span>Not Open</span>
-    </div>
-
-    <div class="legend-item">
-        <span class="legend-color no-data"></span>
-        <span>No Data / Not Operational</span>
-    </div>
-
-    <div class="legend-note">
-        Status reflects the historical daily terrain report for the selected date.
-        Trails without a matching historical record are shown as
-        No Data / Not Operational.
-    </div>
-</div>
-    
     <div id="map"></div>
+
+
+    <!-- ==================================================
+         TERRAIN DASHBOARD JAVASCRIPT
+         ================================================== -->
 
     <script src="js/app.js"></script>
 
