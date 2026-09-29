@@ -1,12 +1,13 @@
 mapboxgl.accessToken = 'pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2JmaWllaGQ2NyJ9._ubQTmLlivNH7Wp3eCSckw';
 
-const INITIAL_DATE = '2025-01-15';
 const INITIAL_SEASON = '24-25';
+const INITIAL_DATE = '2025-01-15';
 
 const seasonFiles = {
     '24-25': 'data/trail_status_24-25.csv',
     '23-24': 'data/trail_status_23-24.csv'
 };
+
 
 // --------------------------------------------------
 // Create Mapbox map
@@ -35,12 +36,10 @@ function normalizeDate(dateString) {
 
     dateString = dateString.trim();
 
-    // Already YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
         return dateString;
     }
 
-    // Excel-style M/D/YY or M/D/YYYY
     const parts = dateString.split('/');
 
     if (parts.length === 3) {
@@ -67,7 +66,6 @@ function normalizeDate(dateString) {
 
 function parseCSV(text) {
 
-    // Remove Excel BOM if present
     text = text.replace(/^\uFEFF/, '');
 
     const lines = text.trim().split(/\r?\n/);
@@ -121,7 +119,7 @@ function formatDate(dateString) {
 
 
 // --------------------------------------------------
-// Wait for Mapbox to load
+// Map load
 // --------------------------------------------------
 
 map.on('load', async () => {
@@ -129,19 +127,11 @@ map.on('load', async () => {
     try {
 
         // ------------------------------------------
-        // Load trail polygons and historical status
+        // Load static trail geometry once
         // ------------------------------------------
 
-        const [
-            trailResponse,
-            statusResponse
-        ] = await Promise.all([
-
-            fetch('data/trails.geojson'),
-
-            fetch(seasonFiles[INITIAL_SEASON])
-        ]);
-
+        const trailResponse =
+            await fetch('data/trails.geojson');
 
         if (!trailResponse.ok) {
             throw new Error(
@@ -149,45 +139,22 @@ map.on('load', async () => {
             );
         }
 
-        if (!statusResponse.ok) {
-            throw new Error(
-                `Could not load trail status CSV: ${statusResponse.status}`
-            );
-        }
-
-
         const trailData =
             await trailResponse.json();
 
-        const csvText =
-            await statusResponse.text();
 
-        const statusData =
-            parseCSV(csvText);
-
-
-        // ------------------------------------------
-        // Create unique sorted date list
-        // ------------------------------------------
-
-        const dateList = [
-            ...new Set(
-                statusData
-                    .map(row => row.date)
-                    .filter(date => date !== '')
-            )
-        ].sort();
-
-
-        console.log(
-            'Available dates:',
-            dateList.length
-        );
+        // Start every polygon with no status
+        trailData.features.forEach(feature => {
+            feature.properties.dashboard_status = 'No Data';
+        });
 
 
         // ------------------------------------------
-        // Get dashboard controls
+        // Dashboard controls
         // ------------------------------------------
+
+        const seasonSelect =
+            document.getElementById('season-select');
 
         const slider =
             document.getElementById('date-slider');
@@ -200,123 +167,6 @@ map.on('load', async () => {
 
         const lastDateLabel =
             document.getElementById('last-date-label');
-
-
-        if (!slider) {
-            throw new Error(
-                'Could not find #date-slider in index.html'
-            );
-        }
-
-
-        slider.min = 0;
-        slider.max = dateList.length - 1;
-        slider.step = 1;
-
-
-        firstDateLabel.textContent =
-            formatDate(dateList[0]);
-
-        lastDateLabel.textContent =
-            formatDate(
-                dateList[dateList.length - 1]
-            );
-
-
-        // ------------------------------------------
-        // Function to apply selected date
-        // ------------------------------------------
-
-        function applyDate(selectedDate) {
-
-            const selectedDateRecords =
-                statusData.filter(
-                    row =>
-                        row.date === selectedDate
-                );
-
-
-            // trail_id → status
-            const statusLookup = {};
-
-            selectedDateRecords.forEach(row => {
-
-                statusLookup[row.trail_id] =
-                    row.dashboard_status;
-
-            });
-
-
-            // Attach selected day's status
-            // to each trail polygon
-            trailData.features.forEach(feature => {
-
-                const trailID =
-                    feature.properties.trail_id;
-
-                feature.properties.dashboard_status =
-                    statusLookup[trailID] ?? 'No Data';
-
-            });
-
-
-            // If source already exists,
-            // redraw the polygons
-            const trailSource =
-                map.getSource('trails');
-
-            if (trailSource) {
-                trailSource.setData(trailData);
-            }
-
-
-            // Update visible date
-            dateLabel.textContent =
-                formatDate(selectedDate);
-
-
-            // QA counts
-            const statusCounts = {};
-
-            selectedDateRecords.forEach(row => {
-
-                const status =
-                    row.dashboard_status || 'Blank';
-
-                statusCounts[status] =
-                    (statusCounts[status] || 0) + 1;
-
-            });
-
-
-            console.log(
-                `Records found for ${selectedDate}:`,
-                selectedDateRecords.length
-            );
-
-            console.log(
-                'Status counts:',
-                statusCounts
-            );
-        }
-
-
-        // ------------------------------------------
-        // Choose initial date
-        // ------------------------------------------
-
-        let initialIndex =
-            dateList.indexOf(INITIAL_DATE);
-
-        if (initialIndex === -1) {
-            initialIndex = 0;
-        }
-
-        slider.value = initialIndex;
-
-        applyDate(
-            dateList[initialIndex]
-        );
 
 
         // ------------------------------------------
@@ -387,6 +237,249 @@ map.on('load', async () => {
 
 
         // ------------------------------------------
+        // Variables that change by season
+        // ------------------------------------------
+
+        let statusData = [];
+        let dateList = [];
+
+
+        // ------------------------------------------
+        // Apply selected date
+        // ------------------------------------------
+
+        function applyDate(selectedDate) {
+
+            const selectedDateRecords =
+                statusData.filter(
+                    row => row.date === selectedDate
+                );
+
+
+            const statusLookup = {};
+
+            selectedDateRecords.forEach(row => {
+
+                statusLookup[row.trail_id] =
+                    row.dashboard_status;
+
+            });
+
+
+            trailData.features.forEach(feature => {
+
+                const trailID =
+                    feature.properties.trail_id;
+
+                feature.properties.dashboard_status =
+                    statusLookup[trailID] ?? 'No Data';
+
+            });
+
+
+            map.getSource('trails')
+                .setData(trailData);
+
+
+            dateLabel.textContent =
+                formatDate(selectedDate);
+
+
+            // QA counts
+            const statusCounts = {};
+
+            selectedDateRecords.forEach(row => {
+
+                const status =
+                    row.dashboard_status || 'Blank';
+
+                statusCounts[status] =
+                    (statusCounts[status] || 0) + 1;
+
+            });
+
+
+            console.log(
+                `Records found for ${selectedDate}:`,
+                selectedDateRecords.length
+            );
+
+            console.log(
+                'Status counts:',
+                statusCounts
+            );
+        }
+
+
+        // ------------------------------------------
+        // Load an entire season
+        // ------------------------------------------
+
+        async function loadSeason(
+            season,
+            preferredDate = null
+        ) {
+
+            const file =
+                seasonFiles[season];
+
+            if (!file) {
+                throw new Error(
+                    `No file configured for season ${season}`
+                );
+            }
+
+
+            console.log(
+                `Loading season ${season} from ${file}`
+            );
+
+
+            const statusResponse =
+                await fetch(file);
+
+            if (!statusResponse.ok) {
+                throw new Error(
+                    `Could not load ${file}: ${statusResponse.status}`
+                );
+            }
+
+
+            const csvText =
+                await statusResponse.text();
+
+            statusData =
+                parseCSV(csvText);
+
+
+            // Build unique date list
+            dateList = [
+                ...new Set(
+                    statusData
+                        .map(row => row.date)
+                        .filter(date => date !== '')
+                )
+            ].sort();
+
+
+            if (dateList.length === 0) {
+                throw new Error(
+                    `No dates found for season ${season}`
+                );
+            }
+
+
+            // Configure slider for this season
+            slider.min = 0;
+            slider.max = dateList.length - 1;
+            slider.step = 1;
+
+
+            firstDateLabel.textContent =
+                formatDate(dateList[0]);
+
+            lastDateLabel.textContent =
+                formatDate(
+                    dateList[dateList.length - 1]
+                );
+
+
+            // Try preferred date first
+            let selectedIndex = -1;
+
+            if (preferredDate) {
+                selectedIndex =
+                    dateList.indexOf(preferredDate);
+            }
+
+
+            // Otherwise use approximately Jan 15
+            // of the ending year of the season
+            if (selectedIndex === -1) {
+
+                const endingYear =
+                    2000 +
+                    Number(
+                        season.split('-')[1]
+                    );
+
+                const januaryDate =
+                    `${endingYear}-01-15`;
+
+                selectedIndex =
+                    dateList.indexOf(januaryDate);
+            }
+
+
+            // If Jan 15 isn't present, start at first date
+            if (selectedIndex === -1) {
+                selectedIndex = 0;
+            }
+
+
+            slider.value =
+                selectedIndex;
+
+
+            applyDate(
+                dateList[selectedIndex]
+            );
+
+
+            console.log(
+                `Season ${season} loaded with ${dateList.length} dates`
+            );
+        }
+
+
+        // ------------------------------------------
+        // Date slider interaction
+        // ------------------------------------------
+
+        slider.addEventListener(
+            'input',
+            () => {
+
+                const selectedIndex =
+                    Number(slider.value);
+
+                const selectedDate =
+                    dateList[selectedIndex];
+
+                applyDate(selectedDate);
+            }
+        );
+
+
+        // ------------------------------------------
+        // Season dropdown interaction
+        // ------------------------------------------
+
+        seasonSelect.addEventListener(
+            'change',
+            async () => {
+
+                try {
+
+                    const selectedSeason =
+                        seasonSelect.value;
+
+                    await loadSeason(
+                        selectedSeason
+                    );
+
+                } catch (error) {
+
+                    console.error(
+                        'Season change error:',
+                        error
+                    );
+                }
+            }
+        );
+
+
+        // ------------------------------------------
         // Trail popup
         // ------------------------------------------
 
@@ -412,7 +505,6 @@ map.on('load', async () => {
                         Trail ID: ${props.trail_id ?? 'N/A'}
                     `)
                     .addTo(map);
-
             }
         );
 
@@ -428,7 +520,6 @@ map.on('load', async () => {
 
                 map.getCanvasContainer()
                     .style.cursor = 'pointer';
-
             }
         );
 
@@ -439,38 +530,12 @@ map.on('load', async () => {
 
                 map.getCanvasContainer()
                     .style.cursor = '';
-
             }
         );
 
 
         // ------------------------------------------
-        // Slider interaction
-        // ------------------------------------------
-
-        slider.addEventListener(
-            'input',
-            () => {
-
-                const selectedIndex =
-                    Number(slider.value);
-
-                const selectedDate =
-                    dateList[selectedIndex];
-
-                applyDate(selectedDate);
-
-                const seasonSelect =
-                    document.getElementById('season-select');
-
-                seasonSelect.value = INITIAL_SEASON;
-
-            }
-        );
-
-
-        // ------------------------------------------
-        // Fit map to Keystone trail polygons
+        // Fit map to Keystone terrain
         // ------------------------------------------
 
         const bounds =
@@ -500,7 +565,6 @@ map.on('load', async () => {
                 extendBounds(
                     feature.geometry.coordinates
                 );
-
             }
         );
 
@@ -511,6 +575,19 @@ map.on('load', async () => {
                 padding: 40,
                 duration: 0
             }
+        );
+
+
+        // ------------------------------------------
+        // Load initial season
+        // ------------------------------------------
+
+        seasonSelect.value =
+            INITIAL_SEASON;
+
+        await loadSeason(
+            INITIAL_SEASON,
+            INITIAL_DATE
         );
 
 
