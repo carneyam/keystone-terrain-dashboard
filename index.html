@@ -11,16 +11,15 @@
         content="width=device-width, initial-scale=1"
     >
 
-    <!-- Mapbox GL JS stylesheet -->
+    <!-- Mapbox GL JS -->
     <link
         href="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.css"
         rel="stylesheet"
     >
 
-    <!-- Mapbox GL JS library -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.js"></script>
 
-    <!-- Terrain Dashboard stylesheet -->
+    <!-- Terrain Dashboard CSS -->
     <link
         rel="stylesheet"
         href="css/style.css"
@@ -42,11 +41,11 @@
                 <strong>Season:</strong>
             </label>
 
-        <select id="season-select">
-            <option value="24-25">24–25</option>
-            <option value="24-25">23–24</option>
-        </select>
-    </div>
+            <select id="season-select">
+                <option value="24-25">24–25</option>
+                <option value="23-24">23–24</option>
+            </select>
+        </div>
 
         <div class="dashboard-row">
             <strong>Date:</strong>
@@ -55,6 +54,18 @@
             </span>
         </div>
 
+        <!-- Resort operating dates -->
+        <div class="slider-labels operating-dates">
+            <span id="open-date-label">
+                Opening: —
+            </span>
+
+            <span id="close-date-label">
+                Closing: —
+            </span>
+        </div>
+
+        <!-- Date slider -->
         <input
             id="date-slider"
             type="range"
@@ -64,6 +75,7 @@
             step="1"
         >
 
+        <!-- Full season calendar -->
         <div class="slider-labels">
             <span id="first-date-label"></span>
             <span id="last-date-label"></span>
@@ -75,48 +87,46 @@
     <!-- ==================================================
          MAP LEGEND
          ================================================== -->
-    
+
     <div id="map-legend">
 
         <div class="legend-title">
-            Trail Status
+            Trail Status:
         </div>
 
         <div class="legend-item">
-            <span class="legend-color open"></span>
+            <span class="legend-swatch legend-open"></span>
             <span>Open</span>
         </div>
 
         <div class="legend-item">
-            <span class="legend-color groomed"></span>
+            <span class="legend-swatch legend-groomed"></span>
             <span>Groomed</span>
         </div>
 
         <div class="legend-item">
-            <span class="legend-color closed"></span>
+            <span class="legend-swatch legend-closed"></span>
             <span>Closed</span>
         </div>
 
         <div class="legend-item">
-            <span class="legend-color racing"></span>
+            <span class="legend-swatch legend-racing"></span>
             <span>Racing</span>
         </div>
 
         <div class="legend-item">
-            <span class="legend-color not-open"></span>
+            <span class="legend-swatch legend-not-open"></span>
             <span>Not Open</span>
         </div>
 
         <div class="legend-item">
-            <span class="legend-color no-data"></span>
+            <span class="legend-swatch legend-no-data"></span>
             <span>No Data / Not Operational</span>
         </div>
 
         <div class="legend-note">
             Status reflects the historical daily terrain report
-            for the selected date. Trails without a matching
-            historical record are shown as
-            No Data / Not Operational.
+            for the selected date.
         </div>
 
     </div>
@@ -129,10 +139,7 @@
     <div id="map"></div>
 
 
-    <!-- ==================================================
-         TERRAIN DASHBOARD JAVASCRIPT
-         ================================================== -->
-
+    <!-- Terrain Dashboard JavaScript -->
     <script src="js/app.js"></script>
 
 </body>
