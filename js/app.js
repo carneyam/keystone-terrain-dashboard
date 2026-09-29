@@ -1,5 +1,9 @@
 mapboxgl.accessToken = 'pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2JmaWllaGQ2NyJ9._ubQTmLlivNH7Wp3eCSckw';
 
+// ==================================================
+// CONFIGURATION
+// ==================================================
+
 const INITIAL_SEASON = '24-25';
 const INITIAL_DATE = '2025-01-15';
 
@@ -9,9 +13,9 @@ const seasonFiles = {
 };
 
 
-// --------------------------------------------------
-// Create Mapbox map
-// --------------------------------------------------
+// ==================================================
+// CREATE MAP
+// ==================================================
 
 const map = new mapboxgl.Map({
     container: 'map',
@@ -26,86 +30,150 @@ map.addControl(
 );
 
 
-// --------------------------------------------------
-// Normalize dates to YYYY-MM-DD
-// --------------------------------------------------
+// ==================================================
+// NORMALIZE SEASON VALUES
+// ==================================================
+
+function normalizeSeason(season) {
+
+    if (!season) {
+        return '';
+    }
+
+    return season
+        .replaceAll('–', '-')
+        .replaceAll('—', '-')
+        .trim();
+}
+
+
+// ==================================================
+// NORMALIZE DATES TO YYYY-MM-DD
+// ==================================================
 
 function normalizeDate(dateString) {
 
-    if (!dateString) return '';
+    if (!dateString) {
+        return '';
+    }
 
     dateString = dateString.trim();
 
+
+    // Already formatted YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+
         return dateString;
     }
 
-    const parts = dateString.split('/');
+
+    // Excel-style M/D/YY or M/D/YYYY
+    const parts =
+        dateString.split('/');
+
 
     if (parts.length === 3) {
 
-        const month = parts[0].padStart(2, '0');
-        const day = parts[1].padStart(2, '0');
+        const month =
+            parts[0].padStart(2, '0');
 
-        let year = parts[2];
+        const day =
+            parts[1].padStart(2, '0');
+
+        let year =
+            parts[2];
+
 
         if (year.length === 2) {
-            year = '20' + year;
+
+            year =
+                '20' + year;
         }
+
 
         return `${year}-${month}-${day}`;
     }
+
 
     return dateString;
 }
 
 
-// --------------------------------------------------
-// Simple CSV parser
-// --------------------------------------------------
+// ==================================================
+// CSV PARSER
+// ==================================================
 
 function parseCSV(text) {
 
-    text = text.replace(/^\uFEFF/, '');
+    // Remove possible Excel BOM
+    text =
+        text.replace(/^\uFEFF/, '');
 
-    const lines = text.trim().split(/\r?\n/);
 
-    const headers = lines[0]
-        .split(',')
-        .map(header =>
-            header.trim().replace(/^"|"$/g, '')
-        );
+    const lines =
+        text
+            .trim()
+            .split(/\r?\n/);
 
-    return lines.slice(1).map(line => {
 
-        const values = line
+    const headers =
+        lines[0]
             .split(',')
-            .map(value =>
-                value.trim().replace(/^"|"$/g, '')
+            .map(header =>
+                header
+                    .trim()
+                    .replace(/^"|"$/g, '')
             );
 
-        const row = {};
 
-        headers.forEach((header, index) => {
-            row[header] = values[index] ?? '';
+    return lines
+        .slice(1)
+        .map(line => {
+
+            const values =
+                line
+                    .split(',')
+                    .map(value =>
+                        value
+                            .trim()
+                            .replace(/^"|"$/g, '')
+                    );
+
+
+            const row = {};
+
+
+            headers.forEach(
+                (header, index) => {
+
+                    row[header] =
+                        values[index] ?? '';
+                }
+            );
+
+
+            row.date =
+                normalizeDate(
+                    row.date
+                );
+
+
+            return row;
         });
-
-        row.date = normalizeDate(row.date);
-
-        return row;
-    });
 }
 
 
-// --------------------------------------------------
-// Friendly date display
-// --------------------------------------------------
+// ==================================================
+// DATE FORMATTING
+// ==================================================
 
 function formatDate(dateString) {
 
-    const date = new Date(
-        dateString + 'T12:00:00'
-    );
+    const date =
+        new Date(
+            dateString + 'T12:00:00'
+        );
+
 
     return date.toLocaleDateString(
         'en-US',
@@ -118,70 +186,127 @@ function formatDate(dateString) {
 }
 
 
-// --------------------------------------------------
-// Map load
-// --------------------------------------------------
+function formatShortDate(dateString) {
+
+    const date =
+        new Date(
+            dateString + 'T12:00:00'
+        );
+
+
+    return date.toLocaleDateString(
+        'en-US',
+        {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        }
+    );
+}
+
+
+// ==================================================
+// MAP LOAD
+// ==================================================
 
 map.on('load', async () => {
 
     try {
 
-        // ------------------------------------------
-        // Load static trail geometry once
-        // ------------------------------------------
+        // ==================================================
+        // LOAD STATIC TRAIL GEOMETRY
+        // ==================================================
 
         const trailResponse =
-            await fetch('data/trails.geojson');
+            await fetch(
+                'data/trails.geojson'
+            );
+
 
         if (!trailResponse.ok) {
+
             throw new Error(
                 `Could not load trails.geojson: ${trailResponse.status}`
             );
         }
 
+
         const trailData =
             await trailResponse.json();
 
 
-        // Start every polygon with no status
-        trailData.features.forEach(feature => {
-            feature.properties.dashboard_status = 'No Data';
-        });
+        // Start all polygons with no daily status
+        trailData.features.forEach(
+            feature => {
+
+                feature.properties.dashboard_status =
+                    'No Data';
+            }
+        );
 
 
-        // ------------------------------------------
-        // Dashboard controls
-        // ------------------------------------------
+        // ==================================================
+        // DASHBOARD CONTROLS
+        // ==================================================
 
         const seasonSelect =
-            document.getElementById('season-select');
+            document.getElementById(
+                'season-select'
+            );
+
 
         const slider =
-            document.getElementById('date-slider');
+            document.getElementById(
+                'date-slider'
+            );
+
 
         const dateLabel =
-            document.getElementById('date-label');
+            document.getElementById(
+                'date-label'
+            );
+
 
         const firstDateLabel =
-            document.getElementById('first-date-label');
+            document.getElementById(
+                'first-date-label'
+            );
+
 
         const lastDateLabel =
-            document.getElementById('last-date-label');
+            document.getElementById(
+                'last-date-label'
+            );
 
 
-        // ------------------------------------------
-        // Add trail source
-        // ------------------------------------------
-
-        map.addSource('trails', {
-            type: 'geojson',
-            data: trailData
-        });
+        const openDateLabel =
+            document.getElementById(
+                'open-date-label'
+            );
 
 
-        // ------------------------------------------
-        // Trail fill
-        // ------------------------------------------
+        const closeDateLabel =
+            document.getElementById(
+                'close-date-label'
+            );
+
+
+        // ==================================================
+        // ADD TRAIL SOURCE
+        // ==================================================
+
+        map.addSource(
+            'trails',
+            {
+                type: 'geojson',
+                data: trailData
+            }
+        );
+
+
+        // ==================================================
+        // TRAIL POLYGON FILL
+        // ==================================================
 
         map.addLayer({
             id: 'trail-fill',
@@ -192,7 +317,9 @@ map.on('load', async () => {
             paint: {
 
                 'fill-color': [
+
                     'match',
+
                     ['get', 'dashboard_status'],
 
                     'Open',
@@ -210,7 +337,7 @@ map.on('load', async () => {
                     'Not Open',
                     '#9ca3af',
 
-                    // No Data / unexpected
+                    // No Data / unexpected status
                     '#b8b8b8'
                 ],
 
@@ -219,9 +346,9 @@ map.on('load', async () => {
         });
 
 
-        // ------------------------------------------
-        // Trail outlines
-        // ------------------------------------------
+        // ==================================================
+        // TRAIL OUTLINES
+        // ==================================================
 
         map.addLayer({
             id: 'trail-outline',
@@ -230,80 +357,137 @@ map.on('load', async () => {
             slot: 'top',
 
             paint: {
-                'line-color': '#333333',
-                'line-width': 1
+
+                'line-color':
+                    '#333333',
+
+                'line-width':
+                    1
             }
         });
 
 
-        // ------------------------------------------
-        // Variables that change by season
-        // ------------------------------------------
+        // ==================================================
+        // CURRENT SEASON STATE
+        // ==================================================
 
         let statusData = [];
+
         let dateList = [];
-        let currentSeason = INITIAL_SEASON;
+
+        let currentSeason =
+            INITIAL_SEASON;
 
 
-        // ------------------------------------------
-        // Apply selected date
-        // ------------------------------------------
+        // ==================================================
+        // APPLY SELECTED DATE
+        // ==================================================
 
-        function applyDate(selectedDate) {
+        function applyDate(
+            selectedDate
+        ) {
+
+            if (!selectedDate) {
+
+                return;
+            }
+
 
             const selectedDateRecords =
                 statusData.filter(
-                    row => row.date === selectedDate
+                    row =>
+                        row.date ===
+                        selectedDate
                 );
 
 
+            // Create:
+            // T001 -> Groomed
+            // T002 -> Open
+            // etc.
+
             const statusLookup = {};
 
-            selectedDateRecords.forEach(row => {
 
-                statusLookup[row.trail_id] =
-                    row.dashboard_status;
+            selectedDateRecords.forEach(
+                row => {
 
-            });
-
-
-            trailData.features.forEach(feature => {
-
-                const trailID =
-                    feature.properties.trail_id;
-
-                feature.properties.dashboard_status =
-                    statusLookup[trailID] ?? 'No Data';
-
-            });
+                    statusLookup[
+                        row.trail_id
+                    ] =
+                        row.dashboard_status;
+                }
+            );
 
 
-            map.getSource('trails')
+            // Apply status to each polygon
+
+            trailData.features.forEach(
+                feature => {
+
+                    const trailID =
+                        feature
+                            .properties
+                            .trail_id;
+
+
+                    feature
+                        .properties
+                        .dashboard_status =
+
+                        statusLookup[
+                            trailID
+                        ] ?? 'No Data';
+                }
+            );
+
+
+            // Refresh Mapbox source
+
+            map
+                .getSource('trails')
                 .setData(trailData);
 
 
+            // Update visible selected date
+
             dateLabel.textContent =
-                formatDate(selectedDate);
+                formatDate(
+                    selectedDate
+                );
 
 
             // QA counts
+
             const statusCounts = {};
 
-            selectedDateRecords.forEach(row => {
 
-                const status =
-                    row.dashboard_status || 'Blank';
+            selectedDateRecords.forEach(
+                row => {
 
-                statusCounts[status] =
-                    (statusCounts[status] || 0) + 1;
+                    const status =
+                        row.dashboard_status
+                        || 'Blank';
 
-            });
+
+                    statusCounts[status] =
+                        (
+                            statusCounts[status]
+                            || 0
+                        ) + 1;
+                }
+            );
 
 
             console.log(
-                `Records found for ${selectedDate}:`,
-                selectedDateRecords.length
+                `Season ${currentSeason} | Date ${selectedDate}`
             );
+
+
+            console.log(
+                `Records found: ${selectedDateRecords.length}`
+            );
+
 
             console.log(
                 'Status counts:',
@@ -312,25 +496,127 @@ map.on('load', async () => {
         }
 
 
-        // ------------------------------------------
-        // Load an entire season
-        // ------------------------------------------
+        // ==================================================
+        // DETERMINE RESORT OPERATING WINDOW
+        // ==================================================
+
+        function getOperatingWindow(
+            seasonStatusData
+        ) {
+
+            /*
+             A day counts as operational if at least
+             one historical trail record is:
+
+             Open
+             Groomed
+             Closed
+             Racing
+
+             Pre/post-season "Not Open" dates are ignored.
+            */
+
+            const operationalStatuses =
+                new Set([
+                    'Open',
+                    'Groomed',
+                    'Closed',
+                    'Racing'
+                ]);
+
+
+            const operationalDates =
+                [
+                    ...new Set(
+
+                        seasonStatusData
+                            .filter(row =>
+
+                                operationalStatuses
+                                    .has(
+                                        row.dashboard_status
+                                    )
+                            )
+
+                            .map(row =>
+                                row.date
+                            )
+
+                            .filter(Boolean)
+                    )
+                ]
+                    .sort();
+
+
+            if (
+                operationalDates.length === 0
+            ) {
+
+                return {
+
+                    openingDate:
+                        null,
+
+                    closingDate:
+                        null
+                };
+            }
+
+
+            return {
+
+                openingDate:
+                    operationalDates[0],
+
+                closingDate:
+                    operationalDates[
+                        operationalDates.length - 1
+                    ]
+            };
+        }
+
+
+        // ==================================================
+        // LOAD A SEASON
+        // ==================================================
 
         async function loadSeason(
-            season,
+            requestedSeason,
             preferredDate = null
         ) {
-            currentSeason = season;
-            seasonSelect.value = season;
-            
+
+            const season =
+                normalizeSeason(
+                    requestedSeason
+                );
+
+
             const file =
-                seasonFiles[season];
+                seasonFiles[
+                    season
+                ];
+
 
             if (!file) {
+
                 throw new Error(
                     `No file configured for season ${season}`
                 );
             }
+
+
+            /*
+             Temporarily disable the controls while
+             the new CSV is loading. This prevents a
+             slider event from firing against the
+             previous season's date list.
+            */
+
+            slider.disabled =
+                true;
+
+            seasonSelect.disabled =
+                true;
 
 
             console.log(
@@ -338,228 +624,472 @@ map.on('load', async () => {
             );
 
 
-            const statusResponse =
-                await fetch(file);
+            try {
 
-            if (!statusResponse.ok) {
-                throw new Error(
-                    `Could not load ${file}: ${statusResponse.status}`
-                );
-            }
+                // ------------------------------------------
+                // FETCH CSV
+                // ------------------------------------------
 
-
-            const csvText =
-                await statusResponse.text();
-
-            statusData =
-                parseCSV(csvText);
-
-
-            // Build unique date list
-            dateList = [
-                ...new Set(
-                    statusData
-                        .map(row => row.date)
-                        .filter(date => date !== '')
-                )
-            ].sort();
-
-
-            if (dateList.length === 0) {
-                throw new Error(
-                    `No dates found for season ${season}`
-                );
-            }
-
-
-            // Configure slider for this season
-            slider.min = 0;
-            slider.max = dateList.length - 1;
-            slider.step = 1;
-
-
-            firstDateLabel.textContent =
-                formatDate(dateList[0]);
-
-            lastDateLabel.textContent =
-                formatDate(
-                    dateList[dateList.length - 1]
-                );
-
-
-            // Try preferred date first
-            let selectedIndex = -1;
-
-            if (preferredDate) {
-                selectedIndex =
-                    dateList.indexOf(preferredDate);
-            }
-
-
-            // Otherwise use approximately Jan 15
-            // of the ending year of the season
-            if (selectedIndex === -1) {
-
-                const endingYear =
-                    2000 +
-                    Number(
-                        season.split('-')[1]
+                const response =
+                    await fetch(
+                        file
                     );
 
-                const januaryDate =
-                    `${endingYear}-01-15`;
 
-                selectedIndex =
-                    dateList.indexOf(januaryDate);
+                if (!response.ok) {
+
+                    throw new Error(
+                        `Could not load ${file}: ${response.status}`
+                    );
+                }
+
+
+                const csvText =
+                    await response.text();
+
+
+                // ------------------------------------------
+                // BUILD NEW SEASON DATA
+                // ------------------------------------------
+
+                const newStatusData =
+                    parseCSV(
+                        csvText
+                    );
+
+
+                const newDateList =
+                    [
+                        ...new Set(
+
+                            newStatusData
+                                .map(row =>
+                                    row.date
+                                )
+
+                                .filter(date =>
+                                    date !== ''
+                                )
+                        )
+                    ]
+                        .sort();
+
+
+                if (
+                    newDateList.length === 0
+                ) {
+
+                    throw new Error(
+                        `No dates found for season ${season}`
+                    );
+                }
+
+
+                /*
+                 Only now do we replace the active
+                 season data. This prevents the app
+                 from getting into a mixed-season state.
+                */
+
+                statusData =
+                    newStatusData;
+
+
+                dateList =
+                    newDateList;
+
+
+                currentSeason =
+                    season;
+
+
+                seasonSelect.value =
+                    season;
+
+
+                // ------------------------------------------
+                // UPDATE SLIDER RANGE
+                // ------------------------------------------
+
+                slider.min =
+                    0;
+
+
+                slider.max =
+                    dateList.length - 1;
+
+
+                slider.step =
+                    1;
+
+
+                // ------------------------------------------
+                // UPDATE FULL CALENDAR DATES BELOW SLIDER
+                // ------------------------------------------
+
+                firstDateLabel.textContent =
+                    formatDate(
+                        dateList[0]
+                    );
+
+
+                lastDateLabel.textContent =
+                    formatDate(
+                        dateList[
+                            dateList.length - 1
+                        ]
+                    );
+
+
+                // ------------------------------------------
+                // UPDATE OPEN / CLOSE DATES ABOVE SLIDER
+                // ------------------------------------------
+
+                const operatingWindow =
+                    getOperatingWindow(
+                        statusData
+                    );
+
+
+                if (
+                    operatingWindow
+                        .openingDate
+                ) {
+
+                    openDateLabel.textContent =
+                        `Opening: ${formatShortDate(
+                            operatingWindow
+                                .openingDate
+                        )}`;
+                }
+
+                else {
+
+                    openDateLabel.textContent =
+                        'Opening: —';
+                }
+
+
+                if (
+                    operatingWindow
+                        .closingDate
+                ) {
+
+                    closeDateLabel.textContent =
+                        `Closing: ${formatShortDate(
+                            operatingWindow
+                                .closingDate
+                        )}`;
+                }
+
+                else {
+
+                    closeDateLabel.textContent =
+                        'Closing: —';
+                }
+
+
+                // ------------------------------------------
+                // DETERMINE INITIAL DATE FOR NEW SEASON
+                // ------------------------------------------
+
+                let selectedIndex =
+                    -1;
+
+
+                /*
+                 On first page load, try the configured
+                 January 15, 2025 date.
+                */
+
+                if (preferredDate) {
+
+                    selectedIndex =
+                        dateList.indexOf(
+                            preferredDate
+                        );
+                }
+
+
+                /*
+                 When changing seasons, default to
+                 January 15 of that season's ending year.
+                */
+
+                if (
+                    selectedIndex === -1
+                ) {
+
+                    const endingYear =
+                        2000 +
+                        Number(
+
+                            season
+                                .split('-')[1]
+                        );
+
+
+                    const januaryDate =
+                        `${endingYear}-01-15`;
+
+
+                    selectedIndex =
+                        dateList.indexOf(
+                            januaryDate
+                        );
+                }
+
+
+                /*
+                 If January 15 does not exist,
+                 start on the first available date.
+                */
+
+                if (
+                    selectedIndex === -1
+                ) {
+
+                    selectedIndex =
+                        0;
+                }
+
+
+                slider.value =
+                    selectedIndex;
+
+
+                applyDate(
+                    dateList[
+                        selectedIndex
+                    ]
+                );
+
+
+                console.log(
+                    `Season ${season} loaded successfully`
+                );
+
+
+                console.log(
+                    `Available dates: ${dateList.length}`
+                );
             }
 
+            finally {
 
-            // If Jan 15 isn't present, start at first date
-            if (selectedIndex === -1) {
-                selectedIndex = 0;
+                slider.disabled =
+                    false;
+
+
+                seasonSelect.disabled =
+                    false;
             }
-
-
-            slider.value =
-                selectedIndex;
-
-
-            applyDate(
-                dateList[selectedIndex]
-            );
-
-
-            console.log(
-                `Season ${season} loaded with ${dateList.length} dates`
-            );
         }
 
 
-        // ------------------------------------------
-        // Date slider interaction
-        // ------------------------------------------
+        // ==================================================
+        // DATE SLIDER EVENT
+        // ==================================================
 
         slider.addEventListener(
             'input',
             () => {
 
                 const selectedIndex =
-                    Number(slider.value);
+                    Number(
+                        slider.value
+                    );
+
 
                 const selectedDate =
-                    dateList[selectedIndex];
+                    dateList[
+                        selectedIndex
+                    ];
 
-                applyDate(selectedDate);
 
-                console.log(
-                    `Slider: ${currentSeason} | ${selectedDate}`
+                applyDate(
+                    selectedDate
                 );
             }
         );
 
 
-        // ------------------------------------------
-        // Season dropdown interaction
-        // ------------------------------------------
+        // ==================================================
+        // SEASON DROPDOWN EVENT
+        // ==================================================
 
         seasonSelect.addEventListener(
             'change',
-            async () => {
+            async event => {
+
+                const previousSeason =
+                    currentSeason;
+
 
                 try {
 
                     const selectedSeason =
-                        seasonSelect.value;
+                        normalizeSeason(
+                            event
+                                .target
+                                .value
+                        );
+
 
                     await loadSeason(
                         selectedSeason
                     );
+                }
 
-                } catch (error) {
+                catch (error) {
 
                     console.error(
                         'Season change error:',
                         error
                     );
+
+
+                    /*
+                     If loading the requested season
+                     fails, return the dropdown to the
+                     season whose data is still active.
+                    */
+
+                    seasonSelect.value =
+                        previousSeason;
                 }
             }
         );
 
 
-        // ------------------------------------------
-        // Trail popup
-        // ------------------------------------------
+        // ==================================================
+        // TRAIL POPUP
+        // ==================================================
 
         map.on(
             'click',
             'trail-fill',
-            (e) => {
+            event => {
 
                 const feature =
-                    e.features[0];
+                    event.features[0];
+
 
                 const props =
                     feature.properties;
 
+
+                const displayStatus =
+
+                    props.dashboard_status ===
+                    'No Data'
+
+                        ? 'No Data / Not Operational'
+
+                        : props.dashboard_status;
+
+
                 new mapboxgl.Popup()
-                    .setLngLat(e.lngLat)
+
+                    .setLngLat(
+                        event.lngLat
+                    )
+
                     .setHTML(`
-                        <strong>${props.trail_name ?? 'Unnamed Trail'}</strong><br>
-                        Difficulty: ${props.difficulty ?? 'N/A'}<br>
-                        Zone: ${props.mountain_area ?? 'N/A'}<br>
-                        Acres: ${props.acres_25_26 ?? 'N/A'}<br>
-                        Status: ${props.dashboard_status ?? 'No Data'}<br>
-                        Trail ID: ${props.trail_id ?? 'N/A'}
+
+                        <strong>
+                            ${props.trail_name ?? 'Unnamed Trail'}
+                        </strong>
+
+                        <br>
+
+                        Difficulty:
+                        ${props.difficulty ?? 'N/A'}
+
+                        <br>
+
+                        Zone:
+                        ${props.mountain_area ?? 'N/A'}
+
+                        <br>
+
+                        Acres:
+                        ${props.acres_25_26 ?? 'N/A'}
+
+                        <br>
+
+                        Status:
+                        ${displayStatus ?? 'No Data / Not Operational'}
+
+                        <br>
+
+                        Trail ID:
+                        ${props.trail_id ?? 'N/A'}
                     `)
+
                     .addTo(map);
             }
         );
 
 
-        // ------------------------------------------
-        // Pointer cursor
-        // ------------------------------------------
+        // ==================================================
+        // POINTER CURSOR
+        // ==================================================
 
         map.on(
             'mouseenter',
             'trail-fill',
             () => {
 
-                map.getCanvasContainer()
-                    .style.cursor = 'pointer';
+                map
+                    .getCanvasContainer()
+                    .style
+                    .cursor =
+                    'pointer';
             }
         );
+
 
         map.on(
             'mouseleave',
             'trail-fill',
             () => {
 
-                map.getCanvasContainer()
-                    .style.cursor = '';
+                map
+                    .getCanvasContainer()
+                    .style
+                    .cursor =
+                    '';
             }
         );
 
 
-        // ------------------------------------------
-        // Fit map to Keystone terrain
-        // ------------------------------------------
+        // ==================================================
+        // FIT MAP TO TERRAIN POLYGONS
+        // ==================================================
 
         const bounds =
-            new mapboxgl.LngLatBounds();
+            new mapboxgl
+                .LngLatBounds();
 
 
-        function extendBounds(coords) {
+        function extendBounds(
+            coordinates
+        ) {
 
             if (
-                typeof coords[0] === 'number'
+                typeof coordinates[0]
+                === 'number'
             ) {
 
-                bounds.extend(coords);
+                bounds.extend(
+                    coordinates
+                );
+            }
 
-            } else {
+            else {
 
-                coords.forEach(
+                coordinates.forEach(
                     extendBounds
                 );
             }
@@ -570,7 +1100,9 @@ map.on('load', async () => {
             feature => {
 
                 extendBounds(
-                    feature.geometry.coordinates
+                    feature
+                        .geometry
+                        .coordinates
                 );
             }
         );
@@ -585,26 +1117,25 @@ map.on('load', async () => {
         );
 
 
-        // ------------------------------------------
-        // Load initial season
-        // ------------------------------------------
+        // ==================================================
+        // LOAD INITIAL SEASON
+        // ==================================================
 
         seasonSelect.value =
             INITIAL_SEASON;
+
 
         await loadSeason(
             INITIAL_SEASON,
             INITIAL_DATE
         );
+    }
 
-
-    } catch (error) {
+    catch (error) {
 
         console.error(
             'Terrain Dashboard error:',
             error
         );
-
     }
-
 });
