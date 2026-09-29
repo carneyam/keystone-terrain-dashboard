@@ -222,14 +222,14 @@ map.on('load', async () => {
             .addTo(map);
     });
 
-const statusCounts = {};
+        const statusCounts = {};
 
-selectedDateRecords.forEach(row => {
-    const status = row.dashboard_status || 'Blank';
-    statusCounts[status] = (statusCounts[status] || 0) + 1;
-});
+            selectedDateRecords.forEach(row => {
+                const status = row.dashboard_status || 'Blank';
+            statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
 
-console.log('Status counts:', statusCounts);
+        console.log('Status counts:', statusCounts);
     
     // --------------------------------------------------
     // Cursor
