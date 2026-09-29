@@ -28,9 +28,36 @@
 
 <body>
 
+    <div id="dashboard-panel">
+        <h2>Keystone Terrain Dashboard</h2>
+
+        <div class="dashboard-row">
+            <strong>Season:</strong>
+            <span>24–25</span>
+        </div>
+
+        <div class="dashboard-row">
+            <strong>Date:</strong>
+            <span id="date-label">January 15, 2025</span>
+        </div>
+
+        <input
+            id="date-slider"
+            type="range"
+            min="0"
+            max="1"
+            value="0"
+            step="1"
+        >
+
+        <div class="slider-labels">
+            <span id="first-date-label"></span>
+            <span id="last-date-label"></span>
+        </div>
+    </div>
+
     <div id="map"></div>
 
-    <!-- Terrain Dashboard JavaScript -->
     <script src="js/app.js"></script>
 
 </body>
