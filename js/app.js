@@ -2,6 +2,11 @@ mapboxgl.accessToken = 'pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2Jma
 
 const INITIAL_DATE = '2025-01-15';
 
+const INITIAL_SEASON = '24-25';
+
+const seasonFiles = {
+    '24-25': 'data/trail_status_24-25.csv'
+};
 
 // --------------------------------------------------
 // Create Mapbox map
@@ -134,7 +139,7 @@ map.on('load', async () => {
 
             fetch('data/trails.geojson'),
 
-            fetch('data/trail_status_24-25.csv')
+            fetch(seasonFiles[INITIAL_SEASON])
         ]);
 
 
@@ -454,6 +459,11 @@ map.on('load', async () => {
                     dateList[selectedIndex];
 
                 applyDate(selectedDate);
+
+                const seasonSelect =
+                    document.getElementById('season-select');
+
+                seasonSelect.value = INITIAL_SEASON;
 
             }
         );
