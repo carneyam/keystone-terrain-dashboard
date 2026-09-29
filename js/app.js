@@ -6,6 +6,7 @@ const INITIAL_SEASON = '24-25';
 
 const seasonFiles = {
     '24-25': 'data/trail_status_24-25.csv'
+    '23-24': 'data/trail_status_23-24.csv'
 };
 
 // --------------------------------------------------
