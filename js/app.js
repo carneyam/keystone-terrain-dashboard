@@ -508,12 +508,25 @@ map.on(
             // LOAD STATIC DATA
             // ------------------------------------------
 
-            const [
-                trailResponse,
-                conditionsResponse
-            ] =
 
-                await Promise.all([
+            const [
+    trailResponse,
+    liftResponse,
+    conditionsResponse
+] = await Promise.all([
+
+    fetch(
+        'data/trails.geojson'
+    ),
+
+    fetch(
+        'data/lifts.geojson'
+    ),
+
+    fetch(
+        'data/daily_conditions.csv'
+    )
+]);
 
                     fetch(
                         'data/trails.geojson'
@@ -539,6 +552,37 @@ map.on(
                 await trailResponse
                     .json();
 
+            if (
+    !liftResponse.ok
+) {
+
+    throw new Error(
+        `Could not load lifts.geojson: ${liftResponse.status}`
+    );
+}
+
+
+const liftData =
+    await liftResponse.json();
+
+
+console.log(
+    'Lifts loaded:',
+    liftData.features.length
+);
+
+
+if (
+    liftData.features.length > 0
+) {
+
+    console.log(
+        'Lift fields:',
+        Object.keys(
+            liftData.features[0].properties
+        )
+    );
+}
 
             let conditionsData = [];
 
@@ -702,6 +746,13 @@ map.on(
                 }
             );
 
+            map.addSource(
+    'lifts',
+    {
+        type: 'geojson',
+        data: liftData
+    }
+);
 
             // ------------------------------------------
             // TRAIL FILL
@@ -785,6 +836,37 @@ map.on(
             });
 
 
+            // ------------------------------------------
+// LIFT ALIGNMENTS
+// ------------------------------------------
+
+map.addLayer({
+
+    id:
+        'lift-lines',
+
+    type:
+        'line',
+
+    source:
+        'lifts',
+
+    slot:
+        'top',
+
+    paint: {
+
+        'line-color':
+            '#2563eb',
+
+        'line-width':
+            3,
+
+        'line-opacity':
+            0.9
+    }
+});
+            
             // ------------------------------------------
             // CURRENT SEASON STATE
             // ------------------------------------------
@@ -1560,6 +1642,59 @@ map.on(
 
 
             // ------------------------------------------
+// LIFT POPUP
+// ------------------------------------------
+
+map.on(
+    'click',
+    'lift-lines',
+    event => {
+
+        const props =
+            event
+                .features[0]
+                .properties;
+
+
+        const liftName =
+            props.lift_name
+            ??
+            props.current_name
+            ??
+            'Unnamed Lift';
+
+
+        new mapboxgl.Popup()
+
+            .setLngLat(
+                event.lngLat
+            )
+
+            .setHTML(`
+
+                <strong>
+                    ${liftName}
+                </strong>
+
+                <br>
+
+                Lift ID:
+                ${props.lift_id ?? 'N/A'}
+
+                <br>
+
+                Type:
+                ${props.type ?? 'Lift'}
+
+            `)
+
+            .addTo(
+                map
+            );
+    }
+);
+            
+            // ------------------------------------------
             // POINTER CURSOR
             // ------------------------------------------
 
@@ -1590,6 +1725,33 @@ map.on(
                 }
             );
 
+            map.on(
+    'mouseenter',
+    'lift-lines',
+    () => {
+
+        map
+            .getCanvasContainer()
+            .style
+            .cursor =
+            'pointer';
+    }
+);
+
+
+map.on(
+    'mouseleave',
+    'lift-lines',
+    () => {
+
+        map
+            .getCanvasContainer()
+            .style
+            .cursor =
+            '';
+    }
+);
+            
 
             // ------------------------------------------
             // FIT MAP TO TRAILS
