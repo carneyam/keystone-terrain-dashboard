@@ -968,82 +968,123 @@ map.on(
             // APPLY SELECTED DATE
             // ==================================================
 
-            function applyDate(
-                selectedDate
-            ) {
+           function applyDate(selectedDate) {
 
-                if (
-                    !selectedDate
-                ) {
-
-                    return;
-                }
+    if (!selectedDate) {
+        return;
+    }
 
 
-                const selectedDateRecords =
-                    statusData
-                        .filter(
-                            row =>
-                                row.date
-                                ===
-                                selectedDate
-                        );
+    // ------------------------------------------
+    // Find trail records for selected date
+    // ------------------------------------------
+
+    const selectedDateRecords =
+        statusData.filter(
+            row =>
+                row.date === selectedDate
+        );
 
 
-                const statusLookup =
-                    {};
+    // ------------------------------------------
+    // Create trail ID -> status lookup
+    // ------------------------------------------
+
+    const statusLookup = {};
 
 
-                selectedDateRecords
-                    .forEach(
-                        row => {
+    selectedDateRecords.forEach(
+        row => {
 
-                            statusLookup[
-                                row.trail_id
-                            ] =
-                                row.dashboard_status;
-                        }
-                    );
-
-
-                trailData
-                    .features
-                    .forEach(
-                        feature => {
-
-                            const trailID =
-                                feature
-                                    .properties
-                                    .trail_id;
+            statusLookup[
+                row.trail_id
+            ] =
+                row.dashboard_status;
+        }
+    );
 
 
-                            feature
-                                .properties
-                                .dashboard_status =
+    // ------------------------------------------
+    // Apply status to GeoJSON polygons
+    // ------------------------------------------
 
-                                statusLookup[
-                                    trailID
-                                ]
-                                ??
-                                'No Data';
-                        }
-                    );
+    trailData.features.forEach(
+        feature => {
+
+            const trailID =
+                feature.properties.trail_id;
 
 
-                map
-                    .getSource(
-                        'trails'
-                    )
-                    .setData(
-                        trailData
-                    );
+            feature.properties.dashboard_status =
+                statusLookup[trailID]
+                ?? 'No Data';
+        }
+    );
 
 
-                dateLabel
-                    .textContent =
-                    formatDate(
-                        selectedDate
-                    );
+    // Refresh Mapbox source
+    map
+        .getSource('trails')
+        .setData(trailData);
+
+
+    // ------------------------------------------
+    // Update selected date label
+    // ------------------------------------------
+
+    dateLabel.textContent =
+        formatDate(selectedDate);
+
+
+    // ------------------------------------------
+    // Update daily conditions
+    // ------------------------------------------
+
+    updateConditions(
+        selectedDate
+    );
+
+
+    // ------------------------------------------
+    // QA status counts
+    // ------------------------------------------
+
+    const statusCounts = {};
+
+
+    selectedDateRecords.forEach(
+        row => {
+
+            const status =
+                row.dashboard_status
+                || 'Blank';
+
+
+            statusCounts[status] =
+                (
+                    statusCounts[status]
+                    || 0
+                )
+                + 1;
+        }
+    );
+
+
+    console.log(
+        `Season ${currentSeason} | Date ${selectedDate}`
+    );
+
+
+    console.log(
+        `Records found: ${selectedDateRecords.length}`
+    );
+
+
+    console.log(
+        'Status counts:',
+        statusCounts
+    );
+}
 
 
               function updateConditions(
