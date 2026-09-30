@@ -1,21 +1,11 @@
 mapboxgl.accessToken = 'pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2JmaWllaGQ2NyJ9._ubQTmLlivNH7Wp3eCSckw';
 
-// ==================================================
-// CONFIGURATION
-// ==================================================
-
 const INITIAL_SEASON = '24-25';
-
 const INITIAL_DATE = '2025-01-15';
 
-
 const seasonFiles = {
-
-    '24-25':
-        'data/trail_status_24-25.csv',
-
-    '23-24':
-        'data/trail_status_23-24.csv'
+    '24-25': 'data/trail_status_24-25.csv',
+    '23-24': 'data/trail_status_23-24.csv'
 };
 
 
@@ -23,63 +13,33 @@ const seasonFiles = {
 // CREATE MAP
 // ==================================================
 
-const map =
-    new mapboxgl.Map({
-
-        container:
-            'map',
-
-        style:
-            'mapbox://styles/mapbox/standard',
-
-        center:
-            [-105.95, 39.60],
-
-        zoom:
-            12
-    });
-
+const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/standard',
+    center: [-105.95, 39.60],
+    zoom: 12
+});
 
 map.addControl(
-
     new mapboxgl.NavigationControl(),
-
     'top-right'
 );
 
 
 // ==================================================
-// NORMALIZE SEASON VALUES
+// NORMALIZE VALUES
 // ==================================================
 
-function normalizeSeason(
-    season
-) {
+function normalizeSeason(value) {
 
-    if (!season) {
-        return '';
-    }
+    if (!value) return '';
 
-
-    return season
-
-        .replaceAll(
-            '–',
-            '-'
-        )
-
-        .replaceAll(
-            '—',
-            '-'
-        )
-
+    return String(value)
+        .replaceAll('–', '-')
+        .replaceAll('—', '-')
         .trim();
 }
 
-
-// ==================================================
-// NORMALIZE DATES
-// ==================================================
 
 function normalizeDate(value) {
 
@@ -87,20 +47,16 @@ function normalizeDate(value) {
         return '';
     }
 
-    let dateString =
-        String(value)
-            .trim()
-            .replace(/^"|"$/g, '');
+    const dateString = String(value)
+        .trim()
+        .replace(/^"|"$/g, '');
 
     if (!dateString) {
         return '';
     }
 
 
-    // ------------------------------------------
-    // ISO date: YYYY-MM-DD
-    // ------------------------------------------
-
+    // YYYY-MM-DD
     const isoMatch =
         dateString.match(
             /^(\d{4})-(\d{1,2})-(\d{1,2})/
@@ -121,13 +77,7 @@ function normalizeDate(value) {
     }
 
 
-    // ------------------------------------------
-    // Excel-style dates:
-    // M/D/YY
-    // M/D/YYYY
-    // M/D/ 24
-    // ------------------------------------------
-
+    // M/D/YY or M/D/YYYY
     const slashMatch =
         dateString.match(
             /^(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{2}|\d{4})/
@@ -152,10 +102,7 @@ function normalizeDate(value) {
     }
 
 
-    // ------------------------------------------
     // Excel serial date
-    // ------------------------------------------
-
     const serial =
         Number(dateString);
 
@@ -193,8 +140,10 @@ function normalizeDate(value) {
 
     return '';
 }
+
+
 // ==================================================
-// CSV PARSER
+// CSV PARSING
 // ==================================================
 
 function normalizeHeader(header) {
@@ -214,6 +163,7 @@ function parseCSVLine(line) {
 
     let current = '';
     let insideQuotes = false;
+
 
     for (
         let i = 0;
@@ -264,27 +214,28 @@ function parseCSVLine(line) {
         current.trim()
     );
 
-
     return values;
 }
 
 
 function parseCSV(text) {
 
-    text =
-        text.replace(
-            /^\uFEFF/,
-            ''
-        );
-
-
     const lines =
         text
+            .replace(/^\uFEFF/, '')
             .split(/\r?\n/)
             .filter(
                 line =>
                     line.trim() !== ''
             );
+
+
+    if (
+        lines.length === 0
+    ) {
+
+        return [];
+    }
 
 
     const headers =
@@ -297,113 +248,127 @@ function parseCSV(text) {
 
     return lines
         .slice(1)
-        .map(line => {
+        .map(
+            line => {
 
-            const values =
-                parseCSVLine(line);
+                const values =
+                    parseCSVLine(
+                        line
+                    );
 
 
-            const row = {};
+                const row = {};
 
 
-            headers.forEach(
-                (header, index) => {
+                headers.forEach(
+                    (
+                        header,
+                        index
+                    ) => {
 
-                    row[header] =
-                        values[index]
-                        ?? '';
+                        row[header] =
+                            values[index]
+                            ?? '';
+                    }
+                );
+
+
+                if (
+                    row.date
+                ) {
+
+                    row.date =
+                        normalizeDate(
+                            row.date
+                        );
                 }
-            );
 
 
-            if (row.date) {
+                if (
+                    row.season
+                ) {
 
-                row.date =
-                    normalizeDate(
-                        row.date
-                    );
+                    row.season =
+                        normalizeSeason(
+                            row.season
+                        );
+                }
+
+
+                return row;
             }
-
-
-            if (row.season) {
-
-                row.season =
-                    normalizeSeason(
-                        row.season
-                    );
-            }
-
-
-            return row;
-        });
+        );
 }
 
+
 // ==================================================
-// DATE FORMATTING
+// DATE DISPLAY
 // ==================================================
 
-function formatDate(
-    dateString
-) {
+function formatDate(dateString) {
+
+    if (
+        !/^\d{4}-\d{2}-\d{2}$/
+            .test(
+                dateString || ''
+            )
+    ) {
+
+        return '—';
+    }
+
 
     const date =
         new Date(
-            dateString +
-            'T12:00:00'
+            `${dateString}T12:00:00`
         );
 
 
     return date
         .toLocaleDateString(
-
             'en-US',
-
             {
-                month:
-                    'long',
-
-                day:
-                    'numeric',
-
-                year:
-                    'numeric'
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric'
             }
         );
 }
 
 
-function formatShortDate(
-    dateString
-) {
+function formatShortDate(dateString) {
+
+    if (
+        !/^\d{4}-\d{2}-\d{2}$/
+            .test(
+                dateString || ''
+            )
+    ) {
+
+        return '—';
+    }
+
 
     const date =
         new Date(
-            dateString +
-            'T12:00:00'
+            `${dateString}T12:00:00`
         );
 
 
     return date
         .toLocaleDateString(
-
             'en-US',
-
             {
-                month:
-                    'short',
-
-                day:
-                    'numeric',
-
-                year:
-                    'numeric'
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
             }
         );
 }
 
 
 // ==================================================
-// CONDITION VALUE HELPERS
+// CONDITION HELPERS
 // ==================================================
 
 function getFirstValue(
@@ -411,9 +376,7 @@ function getFirstValue(
     keys
 ) {
 
-    if (!row) {
-        return '';
-    }
+    if (!row) return '';
 
 
     for (
@@ -422,9 +385,7 @@ function getFirstValue(
     ) {
 
         if (
-
-            Object
-                .prototype
+            Object.prototype
                 .hasOwnProperty
                 .call(
                     row,
@@ -434,7 +395,6 @@ function getFirstValue(
             &&
 
             row[key] !== ''
-
         ) {
 
             return row[key];
@@ -451,10 +411,8 @@ function formatSnowValue(
 ) {
 
     if (
-        value === ''
-        ||
-        value === null
-        ||
+        value === '' ||
+        value === null ||
         value === undefined
     ) {
 
@@ -464,32 +422,33 @@ function formatSnowValue(
 
     const number =
         Number(
-            value
+            String(value)
+                .replace(/,/g, '')
         );
 
 
     if (
-        Number.isFinite(
+        !Number.isFinite(
             number
         )
     ) {
 
-        return (
-            number
-                .toLocaleString(
-                    'en-US',
-                    {
-                        maximumFractionDigits:
-                            1
-                    }
-                )
-            +
-            '"'
-        );
+        return value;
     }
 
 
-    return value;
+    return (
+        number
+            .toLocaleString(
+                'en-US',
+                {
+                    maximumFractionDigits:
+                        1
+                }
+            )
+        +
+        '"'
+    );
 }
 
 
@@ -498,10 +457,8 @@ function formatAcres(
 ) {
 
     if (
-        value === ''
-        ||
-        value === null
-        ||
+        value === '' ||
+        value === null ||
         value === undefined
     ) {
 
@@ -511,28 +468,29 @@ function formatAcres(
 
     const number =
         Number(
-            value
+            String(value)
+                .replace(/,/g, '')
         );
 
 
     if (
-        Number.isFinite(
+        !Number.isFinite(
             number
         )
     ) {
 
-        return number
-            .toLocaleString(
-                'en-US',
-                {
-                    maximumFractionDigits:
-                        0
-                }
-            );
+        return value;
     }
 
 
-    return value;
+    return number
+        .toLocaleString(
+            'en-US',
+            {
+                maximumFractionDigits:
+                    0
+            }
+        );
 }
 
 
@@ -546,9 +504,9 @@ map.on(
 
         try {
 
-            // ==================================================
+            // ------------------------------------------
             // LOAD STATIC DATA
-            // ==================================================
+            // ------------------------------------------
 
             const [
                 trailResponse,
@@ -616,10 +574,15 @@ map.on(
                             conditionsData[0]
                         )
                     );
-                }
-            }
 
-            else {
+
+                    console.log(
+                        'First daily condition row:',
+                        conditionsData[0]
+                    );
+                }
+
+            } else {
 
                 console.warn(
                     `Could not load daily_conditions.csv: ${conditionsResponse.status}`
@@ -627,8 +590,11 @@ map.on(
             }
 
 
-            trailData
-                .features
+            // ------------------------------------------
+            // INITIALIZE TRAIL STATUS
+            // ------------------------------------------
+
+            trailData.features
                 .forEach(
                     feature => {
 
@@ -640,9 +606,9 @@ map.on(
                 );
 
 
-            // ==================================================
+            // ------------------------------------------
             // DASHBOARD ELEMENTS
-            // ==================================================
+            // ------------------------------------------
 
             const seasonSelect =
                 document
@@ -721,14 +687,12 @@ map.on(
                     );
 
 
-            // ==================================================
+            // ------------------------------------------
             // MAP SOURCE
-            // ==================================================
+            // ------------------------------------------
 
             map.addSource(
-
                 'trails',
-
                 {
                     type:
                         'geojson',
@@ -739,9 +703,9 @@ map.on(
             );
 
 
-            // ==================================================
+            // ------------------------------------------
             // TRAIL FILL
-            // ==================================================
+            // ------------------------------------------
 
             map.addLayer({
 
@@ -792,9 +756,9 @@ map.on(
             });
 
 
-            // ==================================================
+            // ------------------------------------------
             // TRAIL OUTLINES
-            // ==================================================
+            // ------------------------------------------
 
             map.addLayer({
 
@@ -821,9 +785,9 @@ map.on(
             });
 
 
-            // ==================================================
+            // ------------------------------------------
             // CURRENT SEASON STATE
-            // ==================================================
+            // ------------------------------------------
 
             let statusData = [];
 
@@ -833,9 +797,9 @@ map.on(
                 INITIAL_SEASON;
 
 
-            // ==================================================
-            // UPDATE DAILY CONDITIONS
-            // ==================================================
+            // ------------------------------------------
+            // DAILY CONDITIONS
+            // ------------------------------------------
 
             function updateConditions(
                 selectedDate
@@ -846,18 +810,22 @@ map.on(
                         .find(
                             row =>
 
-                                normalizeSeason(
-                                    row.season
-                                )
-                                ===
+                                row.season ===
                                 currentSeason
 
                                 &&
 
-                                row.date
-                                ===
+                                row.date ===
                                 selectedDate
                         );
+
+
+                console.log(
+                    'Conditions lookup:',
+                    currentSeason,
+                    selectedDate,
+                    conditionRow
+                );
 
 
                 if (
@@ -886,47 +854,44 @@ map.on(
 
                 const hn24 =
                     getFirstValue(
-
                         conditionRow,
-
                         [
                             'hn24',
-                            'HN24'
+                            'hn_24',
+                            '24_hour_snow',
+                            '24hr_snow'
                         ]
                     );
 
 
                 const seasonSnow =
                     getFirstValue(
-
                         conditionRow,
-
                         [
                             'hn_season_to_date',
+                            'season_snowfall',
                             'season_to_date',
-                            'hn_season',
-                            'HN_Season'
+                            'season_snow',
+                            'hn_season'
                         ]
                     );
 
 
                 const hs =
                     getFirstValue(
-
                         conditionRow,
-
                         [
                             'hs',
-                            'HS'
+                            'settled_base',
+                            'base',
+                            'base_depth'
                         ]
                     );
 
 
                 const acresOpen =
                     getFirstValue(
-
                         conditionRow,
-
                         [
                             'acres_open',
                             'reported_acres',
@@ -964,246 +929,121 @@ map.on(
             }
 
 
-            // ==================================================
+            // ------------------------------------------
             // APPLY SELECTED DATE
-            // ==================================================
+            // ------------------------------------------
 
-           function applyDate(selectedDate) {
-
-    if (!selectedDate) {
-        return;
-    }
-
-
-    // ------------------------------------------
-    // Find trail records for selected date
-    // ------------------------------------------
-
-    const selectedDateRecords =
-        statusData.filter(
-            row =>
-                row.date === selectedDate
-        );
-
-
-    // ------------------------------------------
-    // Create trail ID -> status lookup
-    // ------------------------------------------
-
-    const statusLookup = {};
-
-
-    selectedDateRecords.forEach(
-        row => {
-
-            statusLookup[
-                row.trail_id
-            ] =
-                row.dashboard_status;
-        }
-    );
-
-
-    // ------------------------------------------
-    // Apply status to GeoJSON polygons
-    // ------------------------------------------
-
-    trailData.features.forEach(
-        feature => {
-
-            const trailID =
-                feature.properties.trail_id;
-
-
-            feature.properties.dashboard_status =
-                statusLookup[trailID]
-                ?? 'No Data';
-        }
-    );
-
-
-    // Refresh Mapbox source
-    map
-        .getSource('trails')
-        .setData(trailData);
-
-
-    // ------------------------------------------
-    // Update selected date label
-    // ------------------------------------------
-
-    dateLabel.textContent =
-        formatDate(selectedDate);
-
-
-    // ------------------------------------------
-    // Update daily conditions
-    // ------------------------------------------
-
-    updateConditions(
-        selectedDate
-    );
-
-
-    // ------------------------------------------
-    // QA status counts
-    // ------------------------------------------
-
-    const statusCounts = {};
-
-
-    selectedDateRecords.forEach(
-        row => {
-
-            const status =
-                row.dashboard_status
-                || 'Blank';
-
-
-            statusCounts[status] =
-                (
-                    statusCounts[status]
-                    || 0
-                )
-                + 1;
-        }
-    );
-
-
-    console.log(
-        `Season ${currentSeason} | Date ${selectedDate}`
-    );
-
-
-    console.log(
-        `Records found: ${selectedDateRecords.length}`
-    );
-
-
-    console.log(
-        'Status counts:',
-        statusCounts
-    );
-}
-
-
-              function updateConditions(
-    selectedDate
-) {
-
-    const conditionRow =
-        conditionsData.find(
-            row =>
-
-                row.season ===
-                currentSeason
-
-                &&
-
-                row.date ===
+            function applyDate(
                 selectedDate
-        );
+            ) {
+
+                if (
+                    !selectedDate
+                ) {
+
+                    return;
+                }
 
 
-    console.log(
-        'Conditions lookup:',
-        currentSeason,
-        selectedDate,
-        conditionRow
-    );
+                const selectedDateRecords =
+                    statusData
+                        .filter(
+                            row =>
+                                row.date ===
+                                selectedDate
+                        );
 
 
-    if (
-        !conditionRow
-    ) {
-
-        hn24Value.textContent =
-            '—';
-
-        seasonSnowValue.textContent =
-            '—';
-
-        hsValue.textContent =
-            '—';
-
-        acresOpenValue.textContent =
-            '—';
-
-        return;
-    }
+                const statusLookup =
+                    {};
 
 
-    const hn24 =
-        getFirstValue(
-            conditionRow,
-            [
-                'hn24',
-                'hn_24',
-                '24_hour_snow',
-                '24hr_snow'
-            ]
-        );
+                selectedDateRecords
+                    .forEach(
+                        row => {
+
+                            statusLookup[
+                                row.trail_id
+                            ] =
+                                row.dashboard_status;
+                        }
+                    );
 
 
-    const seasonSnow =
-        getFirstValue(
-            conditionRow,
-            [
-                'hn_season_to_date',
-                'season_snowfall',
-                'season_to_date',
-                'season_snow',
-                'hn_season'
-            ]
-        );
+                trailData.features
+                    .forEach(
+                        feature => {
+
+                            const trailID =
+                                feature
+                                    .properties
+                                    .trail_id;
 
 
-    const hs =
-        getFirstValue(
-            conditionRow,
-            [
-                'hs',
-                'settled_base',
-                'base',
-                'base_depth'
-            ]
-        );
+                            feature
+                                .properties
+                                .dashboard_status =
+
+                                statusLookup[
+                                    trailID
+                                ]
+                                ??
+                                'No Data';
+                        }
+                    );
 
 
-    const acresOpen =
-        getFirstValue(
-            conditionRow,
-            [
-                'acres_open',
-                'reported_acres',
-                'acres'
-            ]
-        );
+                map
+                    .getSource(
+                        'trails'
+                    )
+                    .setData(
+                        trailData
+                    );
 
 
-    hn24Value.textContent =
-        formatSnowValue(
-            hn24
-        );
+                dateLabel
+                    .textContent =
+                    formatDate(
+                        selectedDate
+                    );
 
 
-    seasonSnowValue.textContent =
-        formatSnowValue(
-            seasonSnow
-        );
+                updateConditions(
+                    selectedDate
+                );
 
 
-    hsValue.textContent =
-        formatSnowValue(
-            hs
-        );
+                const statusCounts =
+                    {};
 
 
-    acresOpenValue.textContent =
-        formatAcres(
-            acresOpen
-        );
-}
+                selectedDateRecords
+                    .forEach(
+                        row => {
+
+                            const status =
+                                row
+                                    .dashboard_status
+                                ||
+                                'Blank';
+
+
+                            statusCounts[
+                                status
+                            ] =
+                                (
+                                    statusCounts[
+                                        status
+                                    ]
+                                    ||
+                                    0
+                                )
+                                +
+                                1;
+                        }
+                    );
+
 
                 console.log(
                     `Season ${currentSeason} | Date ${selectedDate}`
@@ -1222,9 +1062,9 @@ map.on(
             }
 
 
-            // ==================================================
+            // ------------------------------------------
             // TEMPORARY OPERATING WINDOW
-            // ==================================================
+            // ------------------------------------------
 
             function getOperatingWindow(
                 seasonStatusData
@@ -1232,13 +1072,9 @@ map.on(
 
                 const operationalStatuses =
                     new Set([
-
                         'Open',
-
                         'Groomed',
-
                         'Closed',
-
                         'Racing'
                     ]);
 
@@ -1263,8 +1099,12 @@ map.on(
                                         row.date
                                 )
 
-                                .filter(date => 
-                                     /^\d{4}-\d{2}-\d{2}$/.test(date)
+                                .filter(
+                                    date =>
+                                        /^\d{4}-\d{2}-\d{2}$/
+                                            .test(
+                                                date || ''
+                                            )
                                 )
                         )
                     ]
@@ -1272,8 +1112,7 @@ map.on(
 
 
                 if (
-                    operationalDates.length
-                    ===
+                    operationalDates.length ===
                     0
                 ) {
 
@@ -1295,17 +1134,16 @@ map.on(
 
                     closingDate:
                         operationalDates[
-                            operationalDates.length
-                            -
+                            operationalDates.length -
                             1
                         ]
                 };
             }
 
 
-            // ==================================================
+            // ------------------------------------------
             // LOAD SEASON
-            // ==================================================
+            // ------------------------------------------
 
             async function loadSeason(
                 requestedSeason,
@@ -1367,14 +1205,10 @@ map.on(
                     }
 
 
-                    const csvText =
-                        await response
-                            .text();
-
-
                     const newStatusData =
                         parseCSV(
-                            csvText
+                            await response
+                                .text()
                         );
 
 
@@ -1392,8 +1226,10 @@ map.on(
 
                                     .filter(
                                         date =>
-                                            date =>
-                                             /^\d{4}-\d{2}-\d{2}$/.test(date)
+                                            /^\d{4}-\d{2}-\d{2}$/
+                                                .test(
+                                                    date || ''
+                                                )
                                     )
                             )
                         ]
@@ -1401,8 +1237,7 @@ map.on(
 
 
                     if (
-                        newDateList.length
-                        ===
+                        newDateList.length ===
                         0
                     ) {
 
@@ -1411,10 +1246,6 @@ map.on(
                         );
                     }
 
-
-                    // ------------------------------------------
-                    // COMMIT NEW SEASON STATE
-                    // ------------------------------------------
 
                     statusData =
                         newStatusData;
@@ -1433,10 +1264,6 @@ map.on(
                         season;
 
 
-                    // ------------------------------------------
-                    // SLIDER RANGE
-                    // ------------------------------------------
-
                     slider
                         .min =
                         0;
@@ -1444,8 +1271,7 @@ map.on(
 
                     slider
                         .max =
-                        dateList.length
-                        -
+                        dateList.length -
                         1;
 
 
@@ -1465,16 +1291,11 @@ map.on(
                         .textContent =
                         formatDate(
                             dateList[
-                                dateList.length
-                                -
+                                dateList.length -
                                 1
                             ]
                         );
 
-
-                    // ------------------------------------------
-                    // TEMPORARY OPEN / CLOSE DATES
-                    // ------------------------------------------
 
                     const operatingWindow =
                         getOperatingWindow(
@@ -1482,73 +1303,57 @@ map.on(
                         );
 
 
-                    if (
+                    openDateLabel
+                        .textContent =
                         operatingWindow
                             .openingDate
-                    ) {
 
-                        openDateLabel
-                            .textContent =
+                            ?
 
                             `Opening: ${formatShortDate(
                                 operatingWindow
                                     .openingDate
-                            )}`;
-                    }
+                            )}`
 
-                    else {
+                            :
 
-                        openDateLabel
-                            .textContent =
                             'Opening: —';
-                    }
 
 
-                    if (
+                    closeDateLabel
+                        .textContent =
                         operatingWindow
                             .closingDate
-                    ) {
 
-                        closeDateLabel
-                            .textContent =
+                            ?
 
                             `Closing: ${formatShortDate(
                                 operatingWindow
                                     .closingDate
-                            )}`;
-                    }
+                            )}`
 
-                    else {
+                            :
 
-                        closeDateLabel
-                            .textContent =
                             'Closing: —';
-                    }
 
-
-                    // ------------------------------------------
-                    // INITIAL DATE FOR SEASON
-                    // ------------------------------------------
 
                     let selectedIndex =
-                        -1;
 
-
-                    if (
                         preferredDate
-                    ) {
 
-                        selectedIndex =
-                            dateList
-                                .indexOf(
-                                    preferredDate
-                                );
-                    }
+                            ?
+
+                            dateList.indexOf(
+                                preferredDate
+                            )
+
+                            :
+
+                            -1;
 
 
                     if (
-                        selectedIndex
-                        ===
+                        selectedIndex ===
                         -1
                     ) {
 
@@ -1556,29 +1361,20 @@ map.on(
                             2000
                             +
                             Number(
-
                                 season
-                                    .split(
-                                        '-'
-                                    )[1]
+                                    .split('-')[1]
                             );
 
 
-                        const januaryDate =
-                            `${endingYear}-01-15`;
-
-
                         selectedIndex =
-                            dateList
-                                .indexOf(
-                                    januaryDate
-                                );
+                            dateList.indexOf(
+                                `${endingYear}-01-15`
+                            );
                     }
 
 
                     if (
-                        selectedIndex
-                        ===
+                        selectedIndex ===
                         -1
                     ) {
 
@@ -1593,7 +1389,6 @@ map.on(
 
 
                     applyDate(
-
                         dateList[
                             selectedIndex
                         ]
@@ -1603,9 +1398,13 @@ map.on(
                     console.log(
                         `Season ${season} loaded successfully`
                     );
-                }
 
-                finally {
+
+                    console.log(
+                        `Available dates: ${dateList.length}`
+                    );
+
+                } finally {
 
                     slider
                         .disabled =
@@ -1619,15 +1418,13 @@ map.on(
             }
 
 
-            // ==================================================
-            // DATE SLIDER
-            // ==================================================
+            // ------------------------------------------
+            // SLIDER EVENT
+            // ------------------------------------------
 
             slider
                 .addEventListener(
-
                     'input',
-
                     () => {
 
                         const selectedIndex =
@@ -1636,28 +1433,22 @@ map.on(
                             );
 
 
-                        const selectedDate =
+                        applyDate(
                             dateList[
                                 selectedIndex
-                            ];
-
-
-                        applyDate(
-                            selectedDate
+                            ]
                         );
                     }
                 );
 
 
-            // ==================================================
-            // SEASON DROPDOWN
-            // ==================================================
+            // ------------------------------------------
+            // SEASON EVENT
+            // ------------------------------------------
 
             seasonSelect
                 .addEventListener(
-
                     'change',
-
                     async event => {
 
                         const previousSeason =
@@ -1666,21 +1457,15 @@ map.on(
 
                         try {
 
-                            const selectedSeason =
+                            await loadSeason(
                                 normalizeSeason(
-
                                     event
                                         .target
                                         .value
-                                );
-
-
-                            await loadSeason(
-                                selectedSeason
+                                )
                             );
-                        }
 
-                        catch (
+                        } catch (
                             error
                         ) {
 
@@ -1698,33 +1483,25 @@ map.on(
                 );
 
 
-            // ==================================================
+            // ------------------------------------------
             // TRAIL POPUP
-            // ==================================================
+            // ------------------------------------------
 
             map.on(
-
                 'click',
-
                 'trail-fill',
-
                 event => {
 
-                    const feature =
-                        event
-                            .features[0];
-
-
                     const props =
-                        feature
+                        event
+                            .features[0]
                             .properties;
 
 
                     const displayStatus =
 
                         props
-                            .dashboard_status
-                        ===
+                            .dashboard_status ===
                         'No Data'
 
                             ?
@@ -1782,16 +1559,13 @@ map.on(
             );
 
 
-            // ==================================================
+            // ------------------------------------------
             // POINTER CURSOR
-            // ==================================================
+            // ------------------------------------------
 
             map.on(
-
                 'mouseenter',
-
                 'trail-fill',
-
                 () => {
 
                     map
@@ -1804,11 +1578,8 @@ map.on(
 
 
             map.on(
-
                 'mouseleave',
-
                 'trail-fill',
-
                 () => {
 
                     map
@@ -1820,9 +1591,9 @@ map.on(
             );
 
 
-            // ==================================================
-            // FIT MAP TO TERRAIN
-            // ==================================================
+            // ------------------------------------------
+            // FIT MAP TO TRAILS
+            // ------------------------------------------
 
             const bounds =
                 new mapboxgl
@@ -1834,20 +1605,16 @@ map.on(
             ) {
 
                 if (
-
-                    typeof coordinates[0]
-                    ===
+                    typeof coordinates[0] ===
                     'number'
-
                 ) {
 
                     bounds
                         .extend(
                             coordinates
                         );
-                }
 
-                else {
+                } else {
 
                     coordinates
                         .forEach(
@@ -1857,13 +1624,11 @@ map.on(
             }
 
 
-            trailData
-                .features
+            trailData.features
                 .forEach(
                     feature => {
 
                         extendBounds(
-
                             feature
                                 .geometry
                                 .coordinates
@@ -1873,9 +1638,7 @@ map.on(
 
 
             map.fitBounds(
-
                 bounds,
-
                 {
                     padding:
                         40,
@@ -1886,9 +1649,9 @@ map.on(
             );
 
 
-            // ==================================================
+            // ------------------------------------------
             // INITIAL SEASON
-            // ==================================================
+            // ------------------------------------------
 
             seasonSelect
                 .value =
@@ -1896,14 +1659,11 @@ map.on(
 
 
             await loadSeason(
-
                 INITIAL_SEASON,
-
                 INITIAL_DATE
             );
-        }
 
-        catch (
+        } catch (
             error
         ) {
 
