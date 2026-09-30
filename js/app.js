@@ -504,12 +504,11 @@ map.on(
 
         try {
 
-            // ------------------------------------------
-            // LOAD STATIC DATA
-            // ------------------------------------------
+           // ------------------------------------------
+// LOAD STATIC DATA
+// ------------------------------------------
 
-
-            const [
+const [
     trailResponse,
     liftResponse,
     conditionsResponse
@@ -526,33 +525,33 @@ map.on(
     fetch(
         'data/daily_conditions.csv'
     )
+
 ]);
 
-                    fetch(
-                        'data/trails.geojson'
-                    ),
 
-                    fetch(
-                        'data/daily_conditions.csv'
-                    )
-                ]);
+// ------------------------------------------
+// CHECK / READ TRAILS
+// ------------------------------------------
 
+if (
+    !trailResponse.ok
+) {
 
-            if (
-                !trailResponse.ok
-            ) {
-
-                throw new Error(
-                    `Could not load trails.geojson: ${trailResponse.status}`
-                );
-            }
+    throw new Error(
+        `Could not load trails.geojson: ${trailResponse.status}`
+    );
+}
 
 
-            const trailData =
-                await trailResponse
-                    .json();
+const trailData =
+    await trailResponse.json();
 
-            if (
+
+// ------------------------------------------
+// CHECK / READ LIFTS
+// ------------------------------------------
+
+if (
     !liftResponse.ok
 ) {
 
@@ -584,55 +583,58 @@ if (
     );
 }
 
-            let conditionsData = [];
+
+// ------------------------------------------
+// READ DAILY CONDITIONS
+// ------------------------------------------
+
+let conditionsData = [];
 
 
-            if (
-                conditionsResponse.ok
-            ) {
+if (
+    conditionsResponse.ok
+) {
 
-                const conditionsText =
-                    await conditionsResponse
-                        .text();
-
-
-                conditionsData =
-                    parseCSV(
-                        conditionsText
-                    );
+    const conditionsText =
+        await conditionsResponse.text();
 
 
-                console.log(
-                    'Daily conditions loaded:',
-                    conditionsData.length
-                );
+    conditionsData =
+        parseCSV(
+            conditionsText
+        );
 
 
-                if (
-                    conditionsData.length > 0
-                ) {
-
-                    console.log(
-                        'Daily condition fields:',
-                        Object.keys(
-                            conditionsData[0]
-                        )
-                    );
+    console.log(
+        'Daily conditions loaded:',
+        conditionsData.length
+    );
 
 
-                    console.log(
-                        'First daily condition row:',
-                        conditionsData[0]
-                    );
-                }
+    if (
+        conditionsData.length > 0
+    ) {
 
-            } else {
+        console.log(
+            'Daily condition fields:',
+            Object.keys(
+                conditionsData[0]
+            )
+        );
 
-                console.warn(
-                    `Could not load daily_conditions.csv: ${conditionsResponse.status}`
-                );
-            }
 
+        console.log(
+            'First daily condition row:',
+            conditionsData[0]
+        );
+    }
+
+} else {
+
+    console.warn(
+        `Could not load daily_conditions.csv: ${conditionsResponse.status}`
+    );
+}
 
             // ------------------------------------------
             // INITIALIZE TRAIL STATUS
