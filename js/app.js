@@ -156,10 +156,20 @@ function normalizeDate(
 // CSV PARSER
 // ==================================================
 
-function parseCSV(
-    text
-) {
+function normalizeHeader(header) {
 
+    return header
+        .trim()
+        .replace(/^"|"$/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+}
+
+
+function parseCSV(text) {
+
+    // Remove possible Excel BOM
     text =
         text.replace(
             /^\uFEFF/,
@@ -170,9 +180,7 @@ function parseCSV(
     const lines =
         text
             .trim()
-            .split(
-                /\r?\n/
-            );
+            .split(/\r?\n/);
 
 
     const headers =
@@ -182,12 +190,9 @@ function parseCSV(
 
             .map(
                 header =>
-                    header
-                        .trim()
-                        .replace(
-                            /^"|"$/g,
-                            ''
-                        )
+                    normalizeHeader(
+                        header
+                    )
             );
 
 
@@ -218,7 +223,6 @@ function parseCSV(
 
 
                 headers.forEach(
-
                     (
                         header,
                         index
@@ -257,8 +261,6 @@ function parseCSV(
             }
         );
 }
-
-
 // ==================================================
 // DATE FORMATTING
 // ==================================================
@@ -967,43 +969,123 @@ map.on(
                     );
 
 
-                updateConditions(
-                    selectedDate
-                );
+              function updateConditions(
+    selectedDate
+) {
+
+    const conditionRow =
+        conditionsData.find(
+            row =>
+
+                row.season ===
+                currentSeason
+
+                &&
+
+                row.date ===
+                selectedDate
+        );
 
 
-                // QA counts
-
-                const statusCounts =
-                    {};
-
-
-                selectedDateRecords
-                    .forEach(
-                        row => {
-
-                            const status =
-                                row
-                                    .dashboard_status
-                                ||
-                                'Blank';
+    console.log(
+        'Conditions lookup:',
+        currentSeason,
+        selectedDate,
+        conditionRow
+    );
 
 
-                            statusCounts[
-                                status
-                            ] =
-                                (
-                                    statusCounts[
-                                        status
-                                    ]
-                                    ||
-                                    0
-                                )
-                                +
-                                1;
-                        }
-                    );
+    if (
+        !conditionRow
+    ) {
 
+        hn24Value.textContent =
+            '—';
+
+        seasonSnowValue.textContent =
+            '—';
+
+        hsValue.textContent =
+            '—';
+
+        acresOpenValue.textContent =
+            '—';
+
+        return;
+    }
+
+
+    const hn24 =
+        getFirstValue(
+            conditionRow,
+            [
+                'hn24',
+                'hn_24',
+                '24_hour_snow',
+                '24hr_snow'
+            ]
+        );
+
+
+    const seasonSnow =
+        getFirstValue(
+            conditionRow,
+            [
+                'hn_season_to_date',
+                'season_snowfall',
+                'season_to_date',
+                'season_snow',
+                'hn_season'
+            ]
+        );
+
+
+    const hs =
+        getFirstValue(
+            conditionRow,
+            [
+                'hs',
+                'settled_base',
+                'base',
+                'base_depth'
+            ]
+        );
+
+
+    const acresOpen =
+        getFirstValue(
+            conditionRow,
+            [
+                'acres_open',
+                'reported_acres',
+                'acres'
+            ]
+        );
+
+
+    hn24Value.textContent =
+        formatSnowValue(
+            hn24
+        );
+
+
+    seasonSnowValue.textContent =
+        formatSnowValue(
+            seasonSnow
+        );
+
+
+    hsValue.textContent =
+        formatSnowValue(
+            hs
+        );
+
+
+    acresOpenValue.textContent =
+        formatAcres(
+            acresOpen
+        );
+}
 
                 console.log(
                     `Season ${currentSeason} | Date ${selectedDate}`
