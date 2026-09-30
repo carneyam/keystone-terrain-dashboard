@@ -81,77 +81,118 @@ function normalizeSeason(
 // NORMALIZE DATES
 // ==================================================
 
-function normalizeDate(
-    dateString
-) {
+function normalizeDate(value) {
+
+    if (value === null || value === undefined) {
+        return '';
+    }
+
+    let dateString =
+        String(value)
+            .trim()
+            .replace(/^"|"$/g, '');
 
     if (!dateString) {
         return '';
     }
 
 
-    dateString =
-        dateString.trim();
+    // ------------------------------------------
+    // ISO date: YYYY-MM-DD
+    // ------------------------------------------
 
+    const isoMatch =
+        dateString.match(
+            /^(\d{4})-(\d{1,2})-(\d{1,2})/
+        );
 
-    if (
-        /^\d{4}-\d{2}-\d{2}$/
-            .test(
-                dateString
-            )
-    ) {
+    if (isoMatch) {
 
-        return dateString;
-    }
-
-
-    const parts =
-        dateString.split('/');
-
-
-    if (
-        parts.length === 3
-    ) {
+        const year =
+            isoMatch[1];
 
         const month =
-            parts[0]
-                .padStart(
-                    2,
-                    '0'
-                );
-
+            isoMatch[2].padStart(2, '0');
 
         const day =
-            parts[1]
-                .padStart(
-                    2,
-                    '0'
-                );
+            isoMatch[3].padStart(2, '0');
 
-
-        let year =
-            parts[2];
-
-
-        if (
-            year.length === 2
-        ) {
-
-            year =
-                '20' + year;
-        }
-
-
-        return (
-            `${year}-${month}-${day}`
-        );
+        return `${year}-${month}-${day}`;
     }
 
 
-    return dateString;
+    // ------------------------------------------
+    // Excel-style dates:
+    // M/D/YY
+    // M/D/YYYY
+    // M/D/ 24
+    // ------------------------------------------
+
+    const slashMatch =
+        dateString.match(
+            /^(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{2}|\d{4})/
+        );
+
+    if (slashMatch) {
+
+        const month =
+            slashMatch[1].padStart(2, '0');
+
+        const day =
+            slashMatch[2].padStart(2, '0');
+
+        let year =
+            slashMatch[3];
+
+        if (year.length === 2) {
+            year = '20' + year;
+        }
+
+        return `${year}-${month}-${day}`;
+    }
+
+
+    // ------------------------------------------
+    // Excel serial date
+    // ------------------------------------------
+
+    const serial =
+        Number(dateString);
+
+    if (
+        Number.isFinite(serial) &&
+        serial > 20000 &&
+        serial < 80000
+    ) {
+
+        const excelEpoch =
+            Date.UTC(1899, 11, 30);
+
+        const date =
+            new Date(
+                excelEpoch +
+                serial * 86400000
+            );
+
+        return [
+            date.getUTCFullYear(),
+            String(
+                date.getUTCMonth() + 1
+            ).padStart(2, '0'),
+            String(
+                date.getUTCDate()
+            ).padStart(2, '0')
+        ].join('-');
+    }
+
+
+    console.warn(
+        'Could not normalize date:',
+        value
+    );
+
+    return '';
 }
-
-
 // ==================================================
 // CSV PARSER
 // ==================================================
@@ -167,9 +208,69 @@ function normalizeHeader(header) {
 }
 
 
+function parseCSVLine(line) {
+
+    const values = [];
+
+    let current = '';
+    let insideQuotes = false;
+
+    for (
+        let i = 0;
+        i < line.length;
+        i++
+    ) {
+
+        const character =
+            line[i];
+
+
+        if (character === '"') {
+
+            if (
+                insideQuotes &&
+                line[i + 1] === '"'
+            ) {
+
+                current += '"';
+                i++;
+
+            } else {
+
+                insideQuotes =
+                    !insideQuotes;
+            }
+
+        } else if (
+            character === ',' &&
+            !insideQuotes
+        ) {
+
+            values.push(
+                current.trim()
+            );
+
+            current = '';
+
+        } else {
+
+            current +=
+                character;
+        }
+    }
+
+
+    values.push(
+        current.trim()
+    );
+
+
+    return values;
+}
+
+
 function parseCSV(text) {
 
-    // Remove possible Excel BOM
     text =
         text.replace(
             /^\uFEFF/,
@@ -179,88 +280,64 @@ function parseCSV(text) {
 
     const lines =
         text
-            .trim()
-            .split(/\r?\n/);
-
-
-    const headers =
-        lines[0]
-
-            .split(',')
-
-            .map(
-                header =>
-                    normalizeHeader(
-                        header
-                    )
+            .split(/\r?\n/)
+            .filter(
+                line =>
+                    line.trim() !== ''
             );
 
 
-    return lines
-
-        .slice(1)
-
-        .map(
-            line => {
-
-                const values =
-                    line
-
-                        .split(',')
-
-                        .map(
-                            value =>
-                                value
-                                    .trim()
-                                    .replace(
-                                        /^"|"$/g,
-                                        ''
-                                    )
-                        );
-
-
-                const row = {};
-
-
-                headers.forEach(
-                    (
-                        header,
-                        index
-                    ) => {
-
-                        row[header] =
-                            values[index]
-                            ?? '';
-                    }
-                );
-
-
-                if (
-                    row.date
-                ) {
-
-                    row.date =
-                        normalizeDate(
-                            row.date
-                        );
-                }
-
-
-                if (
-                    row.season
-                ) {
-
-                    row.season =
-                        normalizeSeason(
-                            row.season
-                        );
-                }
-
-
-                return row;
-            }
+    const headers =
+        parseCSVLine(
+            lines[0]
+        ).map(
+            normalizeHeader
         );
+
+
+    return lines
+        .slice(1)
+        .map(line => {
+
+            const values =
+                parseCSVLine(line);
+
+
+            const row = {};
+
+
+            headers.forEach(
+                (header, index) => {
+
+                    row[header] =
+                        values[index]
+                        ?? '';
+                }
+            );
+
+
+            if (row.date) {
+
+                row.date =
+                    normalizeDate(
+                        row.date
+                    );
+            }
+
+
+            if (row.season) {
+
+                row.season =
+                    normalizeSeason(
+                        row.season
+                    );
+            }
+
+
+            return row;
+        });
 }
+
 // ==================================================
 // DATE FORMATTING
 // ==================================================
@@ -1274,9 +1351,8 @@ map.on(
 
                                     .filter(
                                         date =>
-                                            date
-                                            !==
-                                            ''
+                                            date =>
+                                             /^\d{4}-\d{2}-\d{2}$/.test(date)
                                     )
                             )
                         ]
