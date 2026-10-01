@@ -642,6 +642,65 @@ function formatAcres(value) {
 }
 
 
+function applyTrailSeasonFilter(season) {
+
+    const seasonYear =
+        getSeasonStartYear(season);
+
+
+    const seasonFilter = [
+
+        'all',
+
+        [
+            '<=',
+            [
+                'to-number',
+                ['get', 'display_from_year']
+            ],
+            seasonYear
+        ],
+
+        [
+            '>=',
+            [
+                'to-number',
+                ['get', 'display_to_year']
+            ],
+            seasonYear
+        ]
+    ];
+
+
+    map.setFilter(
+        'trail-fill',
+        seasonFilter
+    );
+
+
+    map.setFilter(
+        'trail-outline',
+        seasonFilter
+    );
+
+
+    map.setFilter(
+        'trail-groomed-pattern',
+
+        [
+            'all',
+
+            ...seasonFilter.slice(1),
+
+            [
+                '==',
+                ['get', 'dashboard_status'],
+                'Groomed'
+            ]
+        ]
+    );
+}
+
 // ==================================================
 // MAP LOAD
 // ==================================================
@@ -1666,10 +1725,9 @@ map.addLayer({
                     seasonSelect.value =
                         season;
 
-                    applyTrailSeasonVisibility(
-                        trailData,
+                    applyTrailSeasonFilter(
                         season
-                    );
+                        );
 
 
                     // ------------------------------------------
