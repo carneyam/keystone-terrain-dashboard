@@ -7,8 +7,19 @@ mapboxgl.accessToken = 'pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2Jma
 // 1. CONFIGURATION
 // --------------------------------------------------
 
-const INITIAL_SEASON = '24-25';
-const INITIAL_DATE = '2025-01-15';
+const INITIAL_SEASON = '25-26';
+const INITIAL_DATE = '2025-10-25';
+
+// Lift daily-status records begin with the 2016-17 season.
+// Earlier seasons will show all lifts in dark gray.
+const FIRST_LIFT_STATUS_SEASON_YEAR = 2016;
+
+const AVAILABLE_SEASONS = [
+    '24-25',
+    '23-24',
+    '22-23',
+    '21-22'
+];
 
 // Add a season here only after both trail and lift CSVs are uploaded.
 // File naming convention:
@@ -564,6 +575,9 @@ map.on('load', async () => {
 
         async function loadSeason(requestedSeason, preferredDate = null) {
             const season = normalizeSeason(requestedSeason);
+
+            const hasLiftStatus =
+                getSeasonStartYear(season) >= FIRST_LIFT_STATUS_SEASON_YEAR;
 
             if (!AVAILABLE_SEASONS.includes(season)) {
                 throw new Error(`Season ${season} is not yet configured.`);
