@@ -2,237 +2,151 @@
 // TERRAIN DASHBOARD - MAPBOX WEB APP
 // ==================================================
 mapboxgl.accessToken = 'pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2JmaWllaGQ2NyJ9._ubQTmLlivNH7Wp3eCSckw';
-// ==================================================
-// CONFIGURATION
-// ==================================================
+
+// --------------------------------------------------
+// 1. CONFIGURATION
+// --------------------------------------------------
 
 const INITIAL_SEASON = '24-25';
 const INITIAL_DATE = '2025-01-15';
 
-const trailStatusFiles = {
-    '24-25': 'data/trail_status_24-25.csv',
-    '23-24': 'data/trail_status_23-24.csv'
+// Add a season here only after both trail and lift CSVs are uploaded.
+// File naming convention:
+//   data/trail_status_24-25.csv
+//   data/lift_status_24-25.csv
+const AVAILABLE_SEASONS = ['24-25', '23-24'];
+
+const DATA_FILES = {
+    trails: 'data/trails.geojson',
+    lifts: 'data/lifts.geojson',
+    conditions: 'data/daily_conditions.csv',
+    seasons: 'data/seasons.csv'
 };
 
-const liftStatusFiles = {
-    '24-25': 'data/lift_status_24-25.csv',
-    '23-24': 'data/lift_status_23-24.csv'
+const COLORS = {
+    open: '#39a844',
+    groomed: '#146b2e',
+    closed: '#d9342b',
+    racing: '#f59e0b',
+    notOpen: '#9ca3af',
+    noData: '#b8b8b8'
 };
 
-
-// ==================================================
-// CREATE MAP
-// ==================================================
-
-const map = new mapboxgl.Map({
-    container: 'map',
-    style: 'mapbox://styles/mapbox/standard-satellite',
-    center: [-105.95, 39.60],
-    zoom: 12
-});
-
-map.addControl(
-    new mapboxgl.NavigationControl(),
-    'top-right'
-);
-
-
-// ==================================================
-// NORMALIZE VALUES
-// ==================================================
+// --------------------------------------------------
+// 2. GENERAL HELPERS
+// --------------------------------------------------
 
 function normalizeSeason(value) {
-
-    if (!value) {
-        return '';
-    }
-
-    return String(value)
-        .replaceAll('–', '-')
-        .replaceAll('—', '-')
-        .trim();
+    if (!value) return '';
+    return String(value).replaceAll('–', '-').replaceAll('—', '-').trim();
 }
 
+function getSeasonStartYear(season) {
+    const start = Number(normalizeSeason(season).split('-')[0]);
+    return 2000 + start;
+}
 
 function normalizeDate(value) {
+    if (value === null || value === undefined) return '';
 
-    if (
-        value === null ||
-        value === undefined
-    ) {
-        return '';
+    const text = String(value).trim().replace(/^"|"$/g, '');
+    if (!text) return '';
+
+    const iso = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (iso) {
+        return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
     }
 
-    const dateString =
-        String(value)
-            .trim()
-            .replace(/^"|"$/g, '');
-
-    if (!dateString) {
-        return '';
+    const slash = text.match(/^(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{2}|\d{4})/);
+    if (slash) {
+        let year = slash[3];
+        if (year.length === 2) year = `20${year}`;
+        return `${year}-${slash[1].padStart(2, '0')}-${slash[2].padStart(2, '0')}`;
     }
 
-
-    // YYYY-MM-DD
-    const isoMatch =
-        dateString.match(
-            /^(\d{4})-(\d{1,2})-(\d{1,2})/
-        );
-
-    if (isoMatch) {
-
-        const year =
-            isoMatch[1];
-
-        const month =
-            isoMatch[2].padStart(2, '0');
-
-        const day =
-            isoMatch[3].padStart(2, '0');
-
-        return `${year}-${month}-${day}`;
-    }
-
-
-    // M/D/YY or M/D/YYYY
-    const slashMatch =
-        dateString.match(
-            /^(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{2}|\d{4})/
-        );
-
-    if (slashMatch) {
-
-        const month =
-            slashMatch[1].padStart(2, '0');
-
-        const day =
-            slashMatch[2].padStart(2, '0');
-
-        let year =
-            slashMatch[3];
-
-        if (year.length === 2) {
-            year = '20' + year;
-        }
-
-        return `${year}-${month}-${day}`;
-    }
-
-
-    // Excel serial date
-    const serial =
-        Number(dateString);
-
-    if (
-        Number.isFinite(serial) &&
-        serial > 20000 &&
-        serial < 80000
-    ) {
-
-        const excelEpoch =
-            Date.UTC(1899, 11, 30);
-
-        const date =
-            new Date(
-                excelEpoch +
-                serial * 86400000
-            );
-
+    const serial = Number(text);
+    if (Number.isFinite(serial) && serial > 20000 && serial < 80000) {
+        const date = new Date(Date.UTC(1899, 11, 30) + serial * 86400000);
         return [
             date.getUTCFullYear(),
-            String(
-                date.getUTCMonth() + 1
-            ).padStart(2, '0'),
-            String(
-                date.getUTCDate()
-            ).padStart(2, '0')
+            String(date.getUTCMonth() + 1).padStart(2, '0'),
+            String(date.getUTCDate()).padStart(2, '0')
         ].join('-');
     }
 
-
-    console.warn(
-        'Could not normalize date:',
-        value
-    );
-
+    console.warn('Could not normalize date:', value);
     return '';
 }
 
-
-// ==================================================
-// NORMALIZE STATUS
-// ==================================================
-
 function normalizeStatus(row) {
-
     const value =
-        row.dashboard_status
-        ||
-        row.reported_map_status
-        ||
-        row.status_map
-        ||
-        row.status
-        ||
-        row.raw_status
-        ||
+        row.dashboard_status ||
+        row.reported_map_status ||
+        row.status_map ||
+        row.status ||
+        row.raw_status ||
         '';
 
-    const status =
-        String(value)
-            .trim()
-            .toUpperCase();
+    switch (String(value).trim().toUpperCase()) {
+        case 'O':
+        case 'OPEN':
+            return 'Open';
 
+        case 'G':
+        case 'GROOMED':
+            return 'Groomed';
 
-    if (
-        status === 'O' ||
-        status === 'OPEN'
-    ) {
-        return 'Open';
+        case 'C':
+        case 'CLOSED':
+            return 'Closed';
+
+        case 'R':
+        case 'RACING':
+            return 'Racing';
+
+        case 'NOT OPEN':
+            return 'Not Open';
+
+        default:
+            return value || 'No Data';
     }
-
-
-    if (
-        status === 'G' ||
-        status === 'GROOMED'
-    ) {
-        return 'Groomed';
-    }
-
-
-    if (
-        status === 'C' ||
-        status === 'CLOSED'
-    ) {
-        return 'Closed';
-    }
-
-
-    if (
-        status === 'R' ||
-        status === 'RACING'
-    ) {
-        return 'Racing';
-    }
-
-
-    if (
-        status === 'NOT OPEN'
-    ) {
-        return 'Not Open';
-    }
-
-
-    return value || 'No Data';
 }
 
+function formatDate(dateString, short = false) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString || '')) return '—';
 
-// ==================================================
-// CSV PARSING
-// ==================================================
+    const date = new Date(`${dateString}T12:00:00`);
+    return date.toLocaleDateString('en-US', {
+        month: short ? 'short' : 'long',
+        day: 'numeric',
+        year: 'numeric'
+    });
+}
+
+// Reporting slider is intentionally fixed at Oct 15-Apr 21.
+// Resort opening/closing labels still come from seasons.csv.
+function buildReportingDateRange(season) {
+    const startYear = getSeasonStartYear(season);
+    const start = new Date(Date.UTC(startYear, 9, 15));
+    const end = new Date(Date.UTC(startYear + 1, 3, 21));
+    const dates = [];
+
+    for (let current = new Date(start); current <= end; current.setUTCDate(current.getUTCDate() + 1)) {
+        dates.push([
+            current.getUTCFullYear(),
+            String(current.getUTCMonth() + 1).padStart(2, '0'),
+            String(current.getUTCDate()).padStart(2, '0')
+        ].join('-'));
+    }
+
+    return dates;
+}
+
+// --------------------------------------------------
+// 3. CSV HELPERS
+// --------------------------------------------------
 
 function normalizeHeader(header) {
-
     return header
         .trim()
         .replace(/^"|"$/g, '')
@@ -241,2004 +155,593 @@ function normalizeHeader(header) {
         .replace(/^_+|_+$/g, '');
 }
 
-
 function parseCSVLine(line) {
-
     const values = [];
-
     let current = '';
     let insideQuotes = false;
 
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
 
-    for (
-        let i = 0;
-        i < line.length;
-        i++
-    ) {
-
-        const character =
-            line[i];
-
-
-        if (character === '"') {
-
-            if (
-                insideQuotes &&
-                line[i + 1] === '"'
-            ) {
-
+        if (char === '"') {
+            if (insideQuotes && line[i + 1] === '"') {
                 current += '"';
                 i++;
-
             } else {
-
-                insideQuotes =
-                    !insideQuotes;
+                insideQuotes = !insideQuotes;
             }
-
-        } else if (
-            character === ',' &&
-            !insideQuotes
-        ) {
-
-            values.push(
-                current.trim()
-            );
-
+        } else if (char === ',' && !insideQuotes) {
+            values.push(current.trim());
             current = '';
-
         } else {
-
-            current += character;
+            current += char;
         }
     }
 
-
-    values.push(
-        current.trim()
-    );
-
+    values.push(current.trim());
     return values;
 }
 
-
 function parseCSV(text) {
+    const lines = text
+        .replace(/^\uFEFF/, '')
+        .split(/\r?\n/)
+        .filter(line => line.trim() !== '');
 
-    const lines =
-        text
-            .replace(/^\uFEFF/, '')
-            .split(/\r?\n/)
-            .filter(
-                line =>
-                    line.trim() !== ''
-            );
+    if (!lines.length) return [];
 
+    const headers = parseCSVLine(lines[0]).map(normalizeHeader);
 
-    if (
-        lines.length === 0
-    ) {
-        return [];
-    }
+    return lines.slice(1).map(line => {
+        const values = parseCSVLine(line);
+        const row = {};
 
+        headers.forEach((header, index) => {
+            row[header] = values[index] ?? '';
+        });
 
-    const headers =
-        parseCSVLine(
-            lines[0]
-        ).map(
-            normalizeHeader
-        );
+        if (row.season) row.season = normalizeSeason(row.season);
+        if (row.date) row.date = normalizeDate(row.date);
+        if (row.calendar_start) row.calendar_start = normalizeDate(row.calendar_start);
+        if (row.calendar_end) row.calendar_end = normalizeDate(row.calendar_end);
+        if (row.resort_open_date) row.resort_open_date = normalizeDate(row.resort_open_date);
+        if (row.resort_close_date) row.resort_close_date = normalizeDate(row.resort_close_date);
 
-
-    return lines
-        .slice(1)
-        .map(
-            line => {
-
-                const values =
-                    parseCSVLine(
-                        line
-                    );
-
-
-                const row = {};
-
-
-                headers.forEach(
-                    (
-                        header,
-                        index
-                    ) => {
-
-                        row[header] =
-                            values[index]
-                            ?? '';
-                    }
-                );
-
-
-                if (row.season) {
-                    row.season =
-                        normalizeSeason(
-                            row.season
-                        );
-                }
-
-
-                if (row.date) {
-                    row.date =
-                        normalizeDate(
-                            row.date
-                        );
-                }
-
-
-                if (row.calendar_start) {
-                    row.calendar_start =
-                        normalizeDate(
-                            row.calendar_start
-                        );
-                }
-
-
-                if (row.calendar_end) {
-                    row.calendar_end =
-                        normalizeDate(
-                            row.calendar_end
-                        );
-                }
-
-
-                if (row.resort_open_date) {
-                    row.resort_open_date =
-                        normalizeDate(
-                            row.resort_open_date
-                        );
-                }
-
-
-                if (row.resort_close_date) {
-                    row.resort_close_date =
-                        normalizeDate(
-                            row.resort_close_date
-                        );
-                }
-
-
-                return row;
-            }
-        );
+        return row;
+    });
 }
 
+function getFirstValue(row, keys) {
+    if (!row) return '';
 
-// ==================================================
-// CREATE FULL DATE RANGE
-// ==================================================
-
-function buildDateRange(
-    startDate,
-    endDate
-) {
-
-    if (
-        !startDate ||
-        !endDate
-    ) {
-        return [];
-    }
-
-
-    const dates = [];
-
-
-    let current =
-        new Date(
-            `${startDate}T12:00:00Z`
-        );
-
-
-    const end =
-        new Date(
-            `${endDate}T12:00:00Z`
-        );
-
-
-    while (
-        current <= end
-    ) {
-
-        dates.push(
-            [
-                current.getUTCFullYear(),
-                String(
-                    current.getUTCMonth() + 1
-                ).padStart(2, '0'),
-                String(
-                    current.getUTCDate()
-                ).padStart(2, '0')
-            ].join('-')
-        );
-
-
-        current.setUTCDate(
-            current.getUTCDate() + 1
-        );
-    }
-
-
-    return dates;
-}
-
-
-// ==================================================
-// DATE DISPLAY
-// ==================================================
-
-function formatDate(dateString) {
-
-    if (
-        !/^\d{4}-\d{2}-\d{2}$/
-            .test(
-                dateString || ''
-            )
-    ) {
-        return '—';
-    }
-
-
-    const date =
-        new Date(
-            `${dateString}T12:00:00`
-        );
-
-
-    return date.toLocaleDateString(
-        'en-US',
-        {
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric'
-        }
-    );
-}
-
-
-function formatShortDate(dateString) {
-
-    if (
-        !/^\d{4}-\d{2}-\d{2}$/
-            .test(
-                dateString || ''
-            )
-    ) {
-        return '—';
-    }
-
-
-    const date =
-        new Date(
-            `${dateString}T12:00:00`
-        );
-
-
-    return date.toLocaleDateString(
-        'en-US',
-        {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        }
-    );
-}
-
-
-// ==================================================
-// DAILY CONDITIONS HELPERS
-// ==================================================
-
-function getFirstValue(
-    row,
-    keys
-) {
-
-    if (!row) {
-        return '';
-    }
-
-
-    for (
-        const key of keys
-    ) {
-
+    for (const key of keys) {
         if (
-            Object.prototype
-                .hasOwnProperty
-                .call(
-                    row,
-                    key
-                )
-            &&
-            row[key] !== ''
+            Object.prototype.hasOwnProperty.call(row, key) &&
+            row[key] !== '' &&
+            row[key] !== null &&
+            row[key] !== undefined
         ) {
             return row[key];
         }
     }
 
-
     return '';
 }
 
-
 function formatSnowValue(value) {
+    if (value === '' || value === null || value === undefined) return '—';
 
-    if (
-        value === '' ||
-        value === null ||
-        value === undefined
-    ) {
-        return '—';
-    }
+    const number = Number(String(value).replace(/,/g, ''));
+    if (!Number.isFinite(number)) return value;
 
-
-    const number =
-        Number(
-            String(value)
-                .replace(/,/g, '')
-        );
-
-
-    if (
-        !Number.isFinite(
-            number
-        )
-    ) {
-        return value;
-    }
-
-
-    return (
-        number.toLocaleString(
-            'en-US',
-            {
-                maximumFractionDigits: 1
-            }
-        )
-        +
-        '"'
-    );
+    return `${number.toLocaleString('en-US', { maximumFractionDigits: 1 })}"`;
 }
-
 
 function formatAcres(value) {
+    if (value === '' || value === null || value === undefined) return '—';
 
-    if (
-        value === '' ||
-        value === null ||
-        value === undefined
-    ) {
-        return '—';
-    }
+    const number = Number(String(value).replace(/,/g, ''));
+    if (!Number.isFinite(number)) return value;
 
-
-    const number =
-        Number(
-            String(value)
-                .replace(/,/g, '')
-        );
-
-
-    if (
-        !Number.isFinite(
-            number
-        )
-    ) {
-        return value;
-    }
-
-
-    return number.toLocaleString(
-        'en-US',
-        {
-            maximumFractionDigits: 0
-        }
-    );
+    return number.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
+// --------------------------------------------------
+// 4. MAP
+// --------------------------------------------------
 
-function applyTrailSeasonFilter(season) {
+const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/standard-satellite',
+    center: [-105.95, 39.60],
+    zoom: 12
+});
 
-    const seasonYear =
-        getSeasonStartYear(season);
+map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
+// Historical polygons have a valid season range.
+// We calculate a simple true/false property in JavaScript, then Mapbox
+// filters on that boolean. This avoids numeric type issues in Mapbox filters.
+function updateTrailSeasonVisibility(trailData, season) {
+    const year = getSeasonStartYear(season);
 
-    const seasonFilter = [
+    trailData.features.forEach(feature => {
+        const p = feature.properties;
+        const fromYear = Number(p.display_from_year ?? 2006);
+        const toYear = Number(p.display_to_year ?? 9999);
 
-        'all',
-
-        [
-            '<=',
-            [
-                'to-number',
-                ['get', 'display_from_year']
-            ],
-            seasonYear
-        ],
-
-        [
-            '>=',
-            [
-                'to-number',
-                ['get', 'display_to_year']
-            ],
-            seasonYear
-        ]
-    ];
-
-
-    map.setFilter(
-        'trail-fill',
-        seasonFilter
-    );
-
-
-    map.setFilter(
-        'trail-outline',
-        seasonFilter
-    );
-
-
-    map.setFilter(
-        'trail-groomed-pattern',
-
-        [
-            'all',
-
-            ...seasonFilter.slice(1),
-
-            [
-                '==',
-                ['get', 'dashboard_status'],
-                'Groomed'
-            ]
-        ]
-    );
+        p.season_visible = year >= fromYear && year <= toYear;
+    });
 }
 
-// ==================================================
-// MAP LOAD
-// ==================================================
+const visibleTrailFilter = [
+    '==',
+    ['get', 'season_visible'],
+    true
+];
 
-map.on(
-    'load',
-    async () => {
+const groomedVisibleTrailFilter = [
+    'all',
+    ['==', ['get', 'season_visible'], true],
+    ['==', ['get', 'dashboard_status'], 'Groomed']
+];
 
-        try {
+// --------------------------------------------------
+// 5. LOAD APP
+// --------------------------------------------------
 
-            // ==================================================
-// SEASON-AWARE TRAIL GEOMETRY
-// ==================================================
-
-function getSeasonStartYear(season) {
-
-    const normalizedSeason =
-        normalizeSeason(season);
-
-    const startYear =
-        Number(
-            normalizedSeason
-                .split('-')[0]
-        );
-
-    return 2000 + startYear;
-}
-
-
-function isTrailVisibleForSeason(
-    feature,
-    season
-) {
-
-    const seasonYear =
-        getSeasonStartYear(
-            season
-        );
-
-
-    const fromYear =
-        Number(
-            feature.properties.display_from_year
-            ?? 2006
-        );
-
-
-    const toYear =
-        Number(
-            feature.properties.display_to_year
-            ?? 9999
-        );
-
-
-    return (
-        seasonYear >= fromYear
-        &&
-        seasonYear <= toYear
-    );
-}
-
-
-function applyTrailSeasonVisibility(
-    trailData,
-    season
-) {
-
-    trailData.features.forEach(
-        feature => {
-
-            feature.properties.season_visible =
-                isTrailVisibleForSeason(
-                    feature,
-                    season
-                );
-        }
-    );
-}
-            
-            // ==================================================
-            // LOAD STATIC DATA
-            // ==================================================
-
-            const [
-                trailResponse,
-                liftResponse,
-                conditionsResponse,
-                seasonsResponse
-            ] = await Promise.all([
-
-                fetch(
-                    'data/trails.geojson'
-                ),
-
-                fetch(
-                    'data/lifts.geojson'
-                ),
-
-                fetch(
-                    'data/daily_conditions.csv'
-                ),
-
-                fetch(
-                    'data/seasons.csv'
-                )
-
+map.on('load', async () => {
+    try {
+        const [trailResponse, liftResponse, conditionsResponse, seasonsResponse] =
+            await Promise.all([
+                fetch(DATA_FILES.trails),
+                fetch(DATA_FILES.lifts),
+                fetch(DATA_FILES.conditions),
+                fetch(DATA_FILES.seasons)
             ]);
 
-
-            if (!trailResponse.ok) {
-
-                throw new Error(
-                    `Could not load trails.geojson: ${trailResponse.status}`
-                );
-            }
-
-
-            if (!liftResponse.ok) {
-
-                throw new Error(
-                    `Could not load lifts.geojson: ${liftResponse.status}`
-                );
-            }
-
-
-            if (!seasonsResponse.ok) {
-
-                throw new Error(
-                    `Could not load seasons.csv: ${seasonsResponse.status}`
-                );
-            }
-
-
-            const trailData =
-                await trailResponse.json();
-
-
-            const liftData =
-                await liftResponse.json();
-
-
-            const seasonsData =
-                parseCSV(
-                    await seasonsResponse.text()
-                );
-
-
-            console.log(
-                'Trails loaded:',
-                trailData.features.length
-            );
-
-
-            console.log(
-                'Lifts loaded:',
-                liftData.features.length
-            );
-
-
-            console.log(
-                'Seasons loaded:',
-                seasonsData.length
-            );
-
-
-            // ==================================================
-            // DAILY CONDITIONS
-            // ==================================================
-
-            let conditionsData = [];
-
-
-            if (
-                conditionsResponse.ok
-            ) {
-
-                conditionsData =
-                    parseCSV(
-                        await conditionsResponse.text()
-                    );
-
-
-                console.log(
-                    'Daily conditions loaded:',
-                    conditionsData.length
-                );
-
-            } else {
-
-                console.warn(
-                    `Could not load daily_conditions.csv: ${conditionsResponse.status}`
-                );
-            }
-
-
-            // ==================================================
-            // INITIAL STATUS VALUES
-            // ==================================================
-
-        trailData.features.forEach(
-    feature => {
-
-        feature.properties.dashboard_status =
-            'No Data';
-
-
-        feature.properties.season_visible =
-            isTrailVisibleForSeason(
-                feature,
-                INITIAL_SEASON
-            );
-    }
-);
-
-
-            liftData.features.forEach(
-                feature => {
-
-                    feature.properties.dashboard_status =
-                        'No Data';
-                }
-            );
-
-
-            // ==================================================
-            // DASHBOARD ELEMENTS
-            // ==================================================
-
-            const seasonSelect =
-                document.getElementById(
-                    'season-select'
-                );
-
-
-            const slider =
-                document.getElementById(
-                    'date-slider'
-                );
-
-
-            const dateLabel =
-                document.getElementById(
-                    'date-label'
-                );
-
-
-            const firstDateLabel =
-                document.getElementById(
-                    'first-date-label'
-                );
-
-
-            const lastDateLabel =
-                document.getElementById(
-                    'last-date-label'
-                );
-
-
-            const openDateLabel =
-                document.getElementById(
-                    'open-date-label'
-                );
-
-
-            const closeDateLabel =
-                document.getElementById(
-                    'close-date-label'
-                );
-
-
-            const hn24Value =
-                document.getElementById(
-                    'hn24-value'
-                );
-
-
-            const seasonSnowValue =
-                document.getElementById(
-                    'season-snow-value'
-                );
-
-
-            const hsValue =
-                document.getElementById(
-                    'hs-value'
-                );
-
-
-            const acresOpenValue =
-                document.getElementById(
-                    'acres-open-value'
-                );
-
-
-            // ==================================================
-            // MAP SOURCES
-            // ==================================================
-
-            map.addSource(
-                'trails',
-                {
-                    type: 'geojson',
-                    data: trailData
-                }
-            );
-
-
-            map.addSource(
-                'lifts',
-                {
-                    type: 'geojson',
-                    data: liftData
-                }
-            );
-
-// ==================================================
-// GROOMED DOT PATTERN
-// ==================================================
-
-const groomedPatternSize =
-    8;
-
-
-const groomedCanvas =
-    document.createElement(
-        'canvas'
-    );
-
-
-groomedCanvas.width =
-    groomedPatternSize;
-
-groomedCanvas.height =
-    groomedPatternSize;
-
-
-const groomedContext =
-    groomedCanvas.getContext(
-        '2d'
-    );
-
-
-groomedContext.clearRect(
-    0,
-    0,
-    groomedPatternSize,
-    groomedPatternSize
-);
-
-
-groomedContext.fillStyle =
-    'rgba(255, 255, 255, 0.55)';
-
-
-groomedContext.beginPath();
-
-
-groomedContext.arc(
-    2,
-    2,
-    0.7,
-    0,
-    Math.PI * 2
-);
-
-
-groomedContext.fill();
-
-
-map.addImage(
-    'groomed-dots',
-    groomedContext.getImageData(
-        0,
-        0,
-        groomedPatternSize,
-        groomedPatternSize
-    )
-);
-            
-            // ==================================================
-            // TRAIL FILL
-            // ==================================================
-
-            map.addLayer({
-
-                id: 'trail-fill',
-
-                type: 'fill',
-
-                source: 'trails',
-
-                slot: 'top',
-
-                    filter: [
-                        '==',
-                        ['get', 'season_visible'],
-                        true
-                    ],
-
-                paint: {
-
-                    'fill-color': [
-
-                        'match',
-
-                        [
-                            'get',
-                            'dashboard_status'
-                        ],
-
-                        'Open',
-                        '#39a844',
-
-                        'Groomed',
-                        '#146b2e',
-
-                        'Closed',
-                        '#d9342b',
-
-                        'Racing',
-                        '#f59e0b',
-
-                        'Not Open',
-                        '#9ca3af',
-
-                        '#b8b8b8'
-                    ],
-
-                    'fill-opacity':
-                        0.55
-                }
-            });
-
-// ==================================================
-// GROOMED DOT OVERLAY
-// ==================================================
-
-map.addLayer({
-
-    id: 'trail-groomed-pattern',
-
-    type: 'fill',
-
-    source: 'trails',
-
-    slot: 'top',
-
-    filter: [
-
-        'all',
-
-        [
-            '==',
-            ['get', 'season_visible'],
-            true
-        ],
-
-        [
-            '==',
-            ['get', 'dashboard_status'],
-            'Groomed'
-        ]
-    ],
-
-    paint: {
-
-        'fill-pattern':
+        if (!trailResponse.ok) throw new Error(`Could not load ${DATA_FILES.trails}: ${trailResponse.status}`);
+        if (!liftResponse.ok) throw new Error(`Could not load ${DATA_FILES.lifts}: ${liftResponse.status}`);
+        if (!seasonsResponse.ok) throw new Error(`Could not load ${DATA_FILES.seasons}: ${seasonsResponse.status}`);
+
+        const trailData = await trailResponse.json();
+        const liftData = await liftResponse.json();
+        const seasonsData = parseCSV(await seasonsResponse.text());
+        const conditionsData = conditionsResponse.ok
+            ? parseCSV(await conditionsResponse.text())
+            : [];
+
+        if (!conditionsResponse.ok) {
+            console.warn(`Could not load ${DATA_FILES.conditions}: ${conditionsResponse.status}`);
+        }
+
+        // Normalize geometry attributes once.
+        trailData.features.forEach(feature => {
+            const p = feature.properties;
+            p.dashboard_status = 'No Data';
+            p.display_from_year = Number(p.display_from_year ?? 2006);
+            p.display_to_year = Number(p.display_to_year ?? 9999);
+        });
+
+        // Set which trail polygons belong to the initial season before
+        // the GeoJSON source is added to the map.
+        updateTrailSeasonVisibility(trailData, INITIAL_SEASON);
+
+        liftData.features.forEach(feature => {
+            feature.properties.dashboard_status = 'No Data';
+        });
+
+        const conditionsByKey = new Map(
+            conditionsData.map(row => [`${row.season}|${row.date}`, row])
+        );
+
+        console.log('Trails loaded:', trailData.features.length);
+        console.log('Lifts loaded:', liftData.features.length);
+        console.log('Seasons loaded:', seasonsData.length);
+        console.log('Daily conditions loaded:', conditionsData.length);
+
+        // --------------------------------------------------
+        // 6. DASHBOARD ELEMENTS
+        // --------------------------------------------------
+
+        const seasonSelect = document.getElementById('season-select');
+        const slider = document.getElementById('date-slider');
+        const dateLabel = document.getElementById('date-label');
+        const firstDateLabel = document.getElementById('first-date-label');
+        const lastDateLabel = document.getElementById('last-date-label');
+        const openDateLabel = document.getElementById('open-date-label');
+        const closeDateLabel = document.getElementById('close-date-label');
+        const hn24Value = document.getElementById('hn24-value');
+        const seasonSnowValue = document.getElementById('season-snow-value');
+        const hsValue = document.getElementById('hs-value');
+        const acresOpenValue = document.getElementById('acres-open-value');
+
+        // Keep the dropdown limited to seasons whose status files are uploaded.
+        seasonSelect.innerHTML = '';
+        AVAILABLE_SEASONS.forEach(season => {
+            const option = document.createElement('option');
+            option.value = season;
+            option.textContent = season.replace('-', '–');
+            seasonSelect.appendChild(option);
+        });
+
+        // --------------------------------------------------
+        // 7. MAP SOURCES + LAYERS
+        // --------------------------------------------------
+
+        map.addSource('trails', { type: 'geojson', data: trailData });
+        map.addSource('lifts', { type: 'geojson', data: liftData });
+
+        // Small, subtle white-dot pattern for groomed terrain.
+        const patternSize = 8;
+        const patternCanvas = document.createElement('canvas');
+        patternCanvas.width = patternSize;
+        patternCanvas.height = patternSize;
+
+        const patternContext = patternCanvas.getContext('2d');
+        patternContext.clearRect(0, 0, patternSize, patternSize);
+        patternContext.fillStyle = 'rgba(255,255,255,0.55)';
+        patternContext.beginPath();
+        patternContext.arc(2, 2, 0.7, 0, Math.PI * 2);
+        patternContext.fill();
+
+        map.addImage(
             'groomed-dots',
-
-        'fill-opacity':
-            0.55
-    }
-});
-            // ==================================================
-            // TRAIL OUTLINE
-            // ==================================================
-
-            map.addLayer({
-
-                id: 'trail-outline',
-
-                type: 'line',
-
-                source: 'trails',
-
-                slot: 'top',
-
-                paint: {
-
-                    'line-color':
-                        '#333333',
-
-                    'line-width':
-                        1
-                }
-            });
-
-
-            // ==================================================
-            // LIFT WHITE CASING
-            // ==================================================
-
-            map.addLayer({
-
-                id: 'lift-casing',
-
-                type: 'line',
-
-                source: 'lifts',
-
-                slot: 'top',
-
-                layout: {
-
-                    'line-cap':
-                        'round',
-
-                    'line-join':
-                        'round'
-                },
-
-                paint: {
-
-                    'line-color':
-                        '#ffffff',
-
-                    'line-width':
-                        4,
-
-                    'line-dasharray':
-                        [2, 1.5],
-
-                    'line-opacity':
-                        0.95
-                }
-            });
-
-
-            // ==================================================
-            // LIFT STATUS LINE
-            // ==================================================
-
-            map.addLayer({
-
-                id: 'lift-lines',
-
-                type: 'line',
-
-                source: 'lifts',
-
-                slot: 'top',
-
-                layout: {
-
-                    'line-cap':
-                        'round',
-
-                    'line-join':
-                        'round'
-                },
-
-                paint: {
-
-                    'line-color': [
-
-                        'match',
-
-                        [
-                            'get',
-                            'dashboard_status'
-                        ],
-
-                        'Open',
-                        '#39a844',
-
-                        'Closed',
-                        '#d9342b',
-
-                        'Not Open',
-                        '#9ca3af',
-
-                        '#b8b8b8'
-                    ],
-
-                    'line-width':
-                        3,
-
-                    'line-dasharray':
-                        [2, 1.5],
-
-                    'line-opacity':
-                        1
-                }
-            });
-
-
-            // ==================================================
-            // CURRENT STATE
-            // ==================================================
-
-            let trailStatusData = [];
-
-            let liftStatusData = [];
-
-            let dateList = [];
-
-            let currentSeason =
-                INITIAL_SEASON;
-
-
-            // ==================================================
-            // DAILY CONDITIONS
-            // ==================================================
-
-            function updateConditions(
-                selectedDate
-            ) {
-
-                const conditionRow =
-                    conditionsData.find(
-                        row =>
-
-                            row.season ===
-                            currentSeason
-
-                            &&
-
-                            row.date ===
-                            selectedDate
-                    );
-
-
-                if (!conditionRow) {
-
-                    hn24Value.textContent =
-                        '—';
-
-                    seasonSnowValue.textContent =
-                        '—';
-
-                    hsValue.textContent =
-                        '—';
-
-                    acresOpenValue.textContent =
-                        '—';
-
-                    return;
-                }
-
-
-                const hn24 =
-                    getFirstValue(
-                        conditionRow,
-                        [
-                            'hn24',
-                            'hn_24',
-                            '24_hour_snow',
-                            '24hr_snow'
-                        ]
-                    );
-
-
-                const seasonSnow =
-                    getFirstValue(
-                        conditionRow,
-                        [
-                            'hn_season_to_date',
-                            'season_snowfall',
-                            'season_to_date',
-                            'season_snow',
-                            'hn_season'
-                        ]
-                    );
-
-
-                const hs =
-                    getFirstValue(
-                        conditionRow,
-                        [
-                            'hs',
-                            'settled_base',
-                            'base',
-                            'base_depth'
-                        ]
-                    );
-
-
-                const acresOpen =
-                    getFirstValue(
-                        conditionRow,
-                        [
-                            'acres_open',
-                            'reported_acres',
-                            'acres'
-                        ]
-                    );
-
-
-                hn24Value.textContent =
-                    formatSnowValue(
-                        hn24
-                    );
-
-
-                seasonSnowValue.textContent =
-                    formatSnowValue(
-                        seasonSnow
-                    );
-
-
-                hsValue.textContent =
-                    formatSnowValue(
-                        hs
-                    );
-
-
-                acresOpenValue.textContent =
-                    formatAcres(
-                        acresOpen
-                    );
+            patternContext.getImageData(0, 0, patternSize, patternSize)
+        );
+
+        map.addLayer({
+            id: 'trail-fill',
+            type: 'fill',
+            source: 'trails',
+            slot: 'top',
+            filter: visibleTrailFilter,
+            paint: {
+                'fill-color': [
+                    'match',
+                    ['get', 'dashboard_status'],
+                    'Open', COLORS.open,
+                    'Groomed', COLORS.groomed,
+                    'Closed', COLORS.closed,
+                    'Racing', COLORS.racing,
+                    'Not Open', COLORS.notOpen,
+                    COLORS.noData
+                ],
+                'fill-opacity': 0.55
+            }
+        });
+
+        map.addLayer({
+            id: 'trail-groomed-pattern',
+            type: 'fill',
+            source: 'trails',
+            slot: 'top',
+            filter: groomedVisibleTrailFilter,
+            paint: {
+                'fill-pattern': 'groomed-dots',
+                'fill-opacity': 0.55
+            }
+        });
+
+        map.addLayer({
+            id: 'trail-outline',
+            type: 'line',
+            source: 'trails',
+            slot: 'top',
+            filter: visibleTrailFilter,
+            paint: {
+                'line-color': '#333333',
+                'line-width': 1
+            }
+        });
+
+        // White dashed casing under the status-colored lift line.
+        map.addLayer({
+            id: 'lift-casing',
+            type: 'line',
+            source: 'lifts',
+            slot: 'top',
+            layout: {
+                'line-cap': 'round',
+                'line-join': 'round'
+            },
+            paint: {
+                'line-color': '#ffffff',
+                'line-width': 4,
+                'line-dasharray': [2, 1.5],
+                'line-opacity': 0.95
+            }
+        });
+
+        map.addLayer({
+            id: 'lift-lines',
+            type: 'line',
+            source: 'lifts',
+            slot: 'top',
+            layout: {
+                'line-cap': 'round',
+                'line-join': 'round'
+            },
+            paint: {
+                'line-color': [
+                    'match',
+                    ['get', 'dashboard_status'],
+                    'Open', COLORS.open,
+                    'Closed', COLORS.closed,
+                    'Not Open', COLORS.notOpen,
+                    COLORS.noData
+                ],
+                'line-width': 3,
+                'line-dasharray': [2, 1.5],
+                'line-opacity': 1
+            }
+        });
+
+        // --------------------------------------------------
+        // 8. CURRENT SEASON STATE
+        // --------------------------------------------------
+
+        let trailStatusData = [];
+        let liftStatusData = [];
+        let dateList = [];
+        let currentSeason = INITIAL_SEASON;
+
+        function updateConditions(selectedDate) {
+            const row = conditionsByKey.get(`${currentSeason}|${selectedDate}`);
+
+            if (!row) {
+                hn24Value.textContent = '—';
+                seasonSnowValue.textContent = '—';
+                hsValue.textContent = '—';
+                acresOpenValue.textContent = '—';
+                return;
             }
 
-
-            // ==================================================
-            // APPLY SELECTED DATE
-            // ==================================================
-
-            function applyDate(
-                selectedDate
-            ) {
-
-                if (!selectedDate) {
-                    return;
-                }
-
-
-                // ------------------------------------------
-                // TRAILS
-                // ------------------------------------------
-
-                const selectedTrailRecords =
-                    trailStatusData.filter(
-                        row =>
-                            row.date ===
-                            selectedDate
-                    );
-
-
-                const trailLookup = {};
-
-
-                selectedTrailRecords.forEach(
-                    row => {
-
-                        trailLookup[
-                            row.trail_id
-                        ] =
-                            normalizeStatus(
-                                row
-                            );
-                    }
-                );
-
-
-                trailData.features.forEach(
-                    feature => {
-
-                        const trailID =
-                            feature
-                                .properties
-                                .trail_id;
-
-
-                        feature
-                            .properties
-                            .dashboard_status =
-
-                            trailLookup[
-                                trailID
-                            ]
-                            ??
-                            'No Data';
-                    }
-                );
-
-
-                // ------------------------------------------
-                // LIFTS
-                // ------------------------------------------
-
-                const selectedLiftRecords =
-                    liftStatusData.filter(
-                        row =>
-                            row.date ===
-                            selectedDate
-                    );
-
-
-                const liftLookup = {};
-
-
-                selectedLiftRecords.forEach(
-                    row => {
-
-                        liftLookup[
-                            row.lift_id
-                        ] =
-                            normalizeStatus(
-                                row
-                            );
-                    }
-                );
-
-
-                liftData.features.forEach(
-                    feature => {
-
-                        const liftID =
-                            feature
-                                .properties
-                                .lift_id;
-
-
-                        feature
-                            .properties
-                            .dashboard_status =
-
-                            liftLookup[
-                                liftID
-                            ]
-                            ??
-                            'No Data';
-                    }
-                );
-
-
-                // ------------------------------------------
-                // REFRESH MAP
-                // ------------------------------------------
-
-                map
-                    .getSource(
-                        'trails'
-                    )
-                    .setData(
-                        trailData
-                    );
-
-
-                map
-                    .getSource(
-                        'lifts'
-                    )
-                    .setData(
-                        liftData
-                    );
-
-
-                // ------------------------------------------
-                // DASHBOARD
-                // ------------------------------------------
-
-                dateLabel.textContent =
-                    formatDate(
-                        selectedDate
-                    );
-
-
-                updateConditions(
-                    selectedDate
-                );
-
-
-                console.log(
-                    `Season ${currentSeason} | Date ${selectedDate}`
-                );
-
-
-                console.log(
-                    `Trail records: ${selectedTrailRecords.length}`
-                );
-
-
-                console.log(
-                    `Lift records: ${selectedLiftRecords.length}`
-                );
-            }
-
-
-            // ==================================================
-            // LOAD SEASON
-            // ==================================================
-
-            async function loadSeason(
-                requestedSeason,
-                preferredDate = null
-            ) {
-
-                const season =
-                    normalizeSeason(
-                        requestedSeason
-                    );
-
-
-                const trailFile =
-                    trailStatusFiles[
-                        season
-                    ];
-
-
-                const liftFile =
-                    liftStatusFiles[
-                        season
-                    ];
-
-
-                const seasonInfo =
-                    seasonsData.find(
-                        row =>
-                            row.season ===
-                            season
-                    );
-
-
-                if (!trailFile) {
-
-                    throw new Error(
-                        `No trail file configured for season ${season}`
-                    );
-                }
-
-
-                if (!liftFile) {
-
-                    throw new Error(
-                        `No lift file configured for season ${season}`
-                    );
-                }
-
-
-                if (!seasonInfo) {
-
-                    throw new Error(
-                        `No seasons.csv record found for season ${season}`
-                    );
-                }
-
-
-                if (
-                    !seasonInfo.calendar_start ||
-                    !seasonInfo.calendar_end
-                ) {
-
-                    throw new Error(
-                        `Season ${season} is missing calendar_start or calendar_end`
-                    );
-                }
-
-
-                slider.disabled =
-                    true;
-
-
-                seasonSelect.disabled =
-                    true;
-
-
-                try {
-
-                    const [
-                        trailStatusResponse,
-                        liftStatusResponse
-                    ] = await Promise.all([
-
-                        fetch(
-                            trailFile
-                        ),
-
-                        fetch(
-                            liftFile
-                        )
-
-                    ]);
-
-
-                    if (
-                        !trailStatusResponse.ok
-                    ) {
-
-                        throw new Error(
-                            `Could not load ${trailFile}: ${trailStatusResponse.status}`
-                        );
-                    }
-
-
-                    if (
-                        !liftStatusResponse.ok
-                    ) {
-
-                        throw new Error(
-                            `Could not load ${liftFile}: ${liftStatusResponse.status}`
-                        );
-                    }
-
-
-                    trailStatusData =
-                        parseCSV(
-                            await trailStatusResponse.text()
-                        );
-
-
-                    liftStatusData =
-                        parseCSV(
-                            await liftStatusResponse.text()
-                        );
-
-
-                    currentSeason =
-                        season;
-
-
-                    seasonSelect.value =
-                        season;
-
-                    applyTrailSeasonFilter(
-                        season
-                        );
-
-
-                    // ------------------------------------------
-                    // AUTHORITATIVE SEASON CALENDAR
-                    // ------------------------------------------
-
-                    dateList =
-                        buildDateRange(
-                            seasonInfo.calendar_start,
-                            seasonInfo.calendar_end
-                        );
-
-
-                    if (
-                        dateList.length ===
-                        0
-                    ) {
-
-                        throw new Error(
-                            `Could not build date range for season ${season}`
-                        );
-                    }
-
-
-                    // ------------------------------------------
-                    // SLIDER RANGE
-                    // ------------------------------------------
-
-                    slider.min =
-                        0;
-
-
-                    slider.max =
-                        dateList.length - 1;
-
-
-                    slider.step =
-                        1;
-
-
-                    firstDateLabel.textContent =
-                        formatDate(
-                            seasonInfo.calendar_start
-                        );
-
-
-                    lastDateLabel.textContent =
-                        formatDate(
-                            seasonInfo.calendar_end
-                        );
-
-
-                    // ------------------------------------------
-                    // AUTHORITATIVE RESORT DATES
-                    // ------------------------------------------
-
-                    openDateLabel.textContent =
-                        seasonInfo.resort_open_date
-
-                            ?
-
-                            `Opening: ${formatShortDate(
-                                seasonInfo.resort_open_date
-                            )}`
-
-                            :
-
-                            'Opening: —';
-
-
-                    closeDateLabel.textContent =
-                        seasonInfo.resort_close_date
-
-                            ?
-
-                            `Closing: ${formatShortDate(
-                                seasonInfo.resort_close_date
-                            )}`
-
-                            :
-
-                            'Closing: —';
-
-
-                    // ------------------------------------------
-                    // SELECT STARTING DATE
-                    // ------------------------------------------
-
-                    let selectedIndex =
-                        preferredDate
-
-                            ?
-
-                            dateList.indexOf(
-                                preferredDate
-                            )
-
-                            :
-
-                            -1;
-
-
-                    if (
-                        selectedIndex ===
-                        -1
-                    ) {
-
-                        const endingYear =
-                            2000
-                            +
-                            Number(
-                                season
-                                    .split('-')[1]
-                            );
-
-
-                        selectedIndex =
-                            dateList.indexOf(
-                                `${endingYear}-01-15`
-                            );
-                    }
-
-
-                    if (
-                        selectedIndex ===
-                        -1
-                    ) {
-
-                        selectedIndex =
-                            0;
-                    }
-
-
-                    slider.value =
-                        selectedIndex;
-
-
-                    applyDate(
-                        dateList[
-                            selectedIndex
-                        ]
-                    );
-
-
-                    console.log(
-                        `Season ${season} loaded`
-                    );
-
-
-                    console.log(
-                        `Calendar: ${seasonInfo.calendar_start} through ${seasonInfo.calendar_end}`
-                    );
-
-
-                    console.log(
-                        `Resort operating dates: ${seasonInfo.resort_open_date} through ${seasonInfo.resort_close_date}`
-                    );
-
-
-                    console.log(
-                        `Trail status rows: ${trailStatusData.length}`
-                    );
-
-
-                    console.log(
-                        `Lift status rows: ${liftStatusData.length}`
-                    );
-
-                } finally {
-
-                    slider.disabled =
-                        false;
-
-
-                    seasonSelect.disabled =
-                        false;
-                }
-            }
-
-
-            // ==================================================
-            // DATE SLIDER
-            // ==================================================
-
-            slider.addEventListener(
-                'input',
-                () => {
-
-                    const selectedIndex =
-                        Number(
-                            slider.value
-                        );
-
-
-                    applyDate(
-                        dateList[
-                            selectedIndex
-                        ]
-                    );
-                }
+            hn24Value.textContent = formatSnowValue(
+                getFirstValue(row, ['hn24', 'hn_24', '24_hour_snow', '24hr_snow'])
             );
 
-
-            // ==================================================
-            // SEASON DROPDOWN
-            // ==================================================
-
-            seasonSelect.addEventListener(
-                'change',
-                async event => {
-
-                    const previousSeason =
-                        currentSeason;
-
-
-                    try {
-
-                        await loadSeason(
-                            normalizeSeason(
-                                event.target.value
-                            )
-                        );
-
-                    } catch (
-                        error
-                    ) {
-
-                        console.error(
-                            'Season change error:',
-                            error
-                        );
-
-
-                        seasonSelect.value =
-                            previousSeason;
-                    }
-                }
+            seasonSnowValue.textContent = formatSnowValue(
+                getFirstValue(row, [
+                    'hn_season_to_date',
+                    'season_snowfall',
+                    'season_to_date',
+                    'season_snow',
+                    'hn_season'
+                ])
             );
 
-
-            // ==================================================
-            // TRAIL POPUP
-            // ==================================================
-
-            map.on(
-                'click',
-                'trail-fill',
-                event => {
-
-                    const props =
-                        event.features[0]
-                            .properties;
-
-
-                    const displayStatus =
-
-                        props.dashboard_status ===
-                        'No Data'
-
-                            ?
-
-                            'No Data / Not Operational'
-
-                            :
-
-                            props.dashboard_status;
-
-
-                    new mapboxgl.Popup()
-
-                        .setLngLat(
-                            event.lngLat
-                        )
-
-                        .setHTML(`
-
-                            <strong>
-                                ${props.trail_name ?? 'Unnamed Trail'}
-                            </strong>
-
-                            <br>
-
-                            Difficulty:
-                            ${props.difficulty ?? 'N/A'}
-
-                            <br>
-
-                            Zone:
-                            ${props.mountain_area ?? 'N/A'}
-
-                            <br>
-
-                            Acres:
-                            ${props.acres_25_26 ?? 'N/A'}
-
-                            <br>
-
-                            Status:
-                            ${displayStatus}
-
-                            <br>
-
-                            Trail ID:
-                            ${props.trail_id ?? 'N/A'}
-                        `)
-
-                        .addTo(
-                            map
-                        );
-                }
+            hsValue.textContent = formatSnowValue(
+                getFirstValue(row, ['hs', 'settled_base', 'base', 'base_depth'])
             );
 
-
-            // ==================================================
-            // LIFT POPUP
-            // ==================================================
-
-            map.on(
-                'click',
-                'lift-lines',
-                event => {
-
-                    const props =
-                        event.features[0]
-                            .properties;
-
-
-                    const liftName =
-                        props.lift_name
-                        ??
-                        props.current_name
-                        ??
-                        'Unnamed Lift';
-
-
-                    const displayStatus =
-
-                        props.dashboard_status ===
-                        'No Data'
-
-                            ?
-
-                            'No Data / Not Operational'
-
-                            :
-
-                            props.dashboard_status;
-
-
-                    new mapboxgl.Popup()
-
-                        .setLngLat(
-                            event.lngLat
-                        )
-
-                        .setHTML(`
-
-                            <strong>
-                                ${liftName}
-                            </strong>
-
-                            <br>
-
-                            Status:
-                            ${displayStatus}
-
-                            <br>
-
-                            Lift ID:
-                            ${props.lift_id ?? 'N/A'}
-                        `)
-
-                        .addTo(
-                            map
-                        );
-                }
-            );
-
-
-            // ==================================================
-            // POINTER CURSORS
-            // ==================================================
-
-            map.on(
-                'mouseenter',
-                'trail-fill',
-                () => {
-
-                    map
-                        .getCanvasContainer()
-                        .style
-                        .cursor =
-                        'pointer';
-                }
-            );
-
-
-            map.on(
-                'mouseleave',
-                'trail-fill',
-                () => {
-
-                    map
-                        .getCanvasContainer()
-                        .style
-                        .cursor =
-                        '';
-                }
-            );
-
-
-            map.on(
-                'mouseenter',
-                'lift-lines',
-                () => {
-
-                    map
-                        .getCanvasContainer()
-                        .style
-                        .cursor =
-                        'pointer';
-                }
-            );
-
-
-            map.on(
-                'mouseleave',
-                'lift-lines',
-                () => {
-
-                    map
-                        .getCanvasContainer()
-                        .style
-                        .cursor =
-                        '';
-                }
-            );
-
-
-            // ==================================================
-            // FIT MAP TO TRAILS
-            // ==================================================
-
-            const bounds =
-                new mapboxgl.LngLatBounds();
-
-
-            function extendBounds(
-                coordinates
-            ) {
-
-                if (
-                    typeof coordinates[0] ===
-                    'number'
-                ) {
-
-                    bounds.extend(
-                        coordinates
-                    );
-
-                } else {
-
-                    coordinates.forEach(
-                        extendBounds
-                    );
-                }
-            }
-
-
-            trailData.features.forEach(
-                feature => {
-
-                    extendBounds(
-                        feature.geometry.coordinates
-                    );
-                }
-            );
-
-
-            map.fitBounds(
-                bounds,
-                {
-                    padding: 40,
-                    duration: 0
-                }
-            );
-
-
-            // ==================================================
-            // INITIAL SEASON
-            // ==================================================
-
-            seasonSelect.value =
-                INITIAL_SEASON;
-
-
-            await loadSeason(
-                INITIAL_SEASON,
-                INITIAL_DATE
-            );
-
-        } catch (
-            error
-        ) {
-
-            console.error(
-                'Terrain Dashboard error:',
-                error
+            acresOpenValue.textContent = formatAcres(
+                getFirstValue(row, ['acres_open', 'reported_acres', 'acres'])
             );
         }
+
+        // Missing daily records remain No Data. A missing record does NOT
+        // automatically mean the trail or lift was closed.
+        function applyDate(selectedDate) {
+            if (!selectedDate) return;
+
+            const trailLookup = new Map();
+            const liftLookup = new Map();
+
+            for (const row of trailStatusData) {
+                if (row.date === selectedDate) {
+                    trailLookup.set(row.trail_id, normalizeStatus(row));
+                }
+            }
+
+            for (const row of liftStatusData) {
+                if (row.date === selectedDate) {
+                    liftLookup.set(row.lift_id, normalizeStatus(row));
+                }
+            }
+
+            trailData.features.forEach(feature => {
+                const id = feature.properties.trail_id;
+                feature.properties.dashboard_status = trailLookup.get(id) ?? 'No Data';
+            });
+
+            liftData.features.forEach(feature => {
+                const id = feature.properties.lift_id;
+                feature.properties.dashboard_status = liftLookup.get(id) ?? 'No Data';
+            });
+
+            map.getSource('trails').setData(trailData);
+            map.getSource('lifts').setData(liftData);
+
+            dateLabel.textContent = formatDate(selectedDate);
+            updateConditions(selectedDate);
+
+            console.log(
+                `Season ${currentSeason} | ${selectedDate} | ` +
+                `Trail records: ${trailLookup.size} | Lift records: ${liftLookup.size}`
+            );
+        }
+
+        async function loadSeason(requestedSeason, preferredDate = null) {
+            const season = normalizeSeason(requestedSeason);
+
+            if (!AVAILABLE_SEASONS.includes(season)) {
+                throw new Error(`Season ${season} is not yet configured.`);
+            }
+
+            const seasonInfo = seasonsData.find(row => row.season === season);
+            if (!seasonInfo) {
+                throw new Error(`No seasons.csv record found for season ${season}.`);
+            }
+
+            const trailFile = `data/trail_status_${season}.csv`;
+            const liftFile = `data/lift_status_${season}.csv`;
+
+            slider.disabled = true;
+            seasonSelect.disabled = true;
+
+            try {
+                const [trailResponse, liftResponse] = await Promise.all([
+                    fetch(trailFile),
+                    fetch(liftFile)
+                ]);
+
+                if (!trailResponse.ok) {
+                    throw new Error(`Could not load ${trailFile}: ${trailResponse.status}`);
+                }
+
+                if (!liftResponse.ok) {
+                    throw new Error(`Could not load ${liftFile}: ${liftResponse.status}`);
+                }
+
+                trailStatusData = parseCSV(await trailResponse.text());
+                liftStatusData = parseCSV(await liftResponse.text());
+
+                currentSeason = season;
+                seasonSelect.value = season;
+
+                // Hide historical/new polygons that do not belong to this season.
+                // applyDate() below refreshes the source after this property is changed.
+                updateTrailSeasonVisibility(trailData, season);
+
+                // Slider always covers Oct 15-Apr 21.
+                dateList = buildReportingDateRange(season);
+                slider.min = 0;
+                slider.max = dateList.length - 1;
+                slider.step = 1;
+
+                firstDateLabel.textContent = formatDate(dateList[0]);
+                lastDateLabel.textContent = formatDate(dateList[dateList.length - 1]);
+
+                // Resort dates remain authoritative from seasons.csv.
+                openDateLabel.textContent = seasonInfo.resort_open_date
+                    ? `Opening: ${formatDate(seasonInfo.resort_open_date, true)}`
+                    : 'Opening: —';
+
+                closeDateLabel.textContent = seasonInfo.resort_close_date
+                    ? `Closing: ${formatDate(seasonInfo.resort_close_date, true)}`
+                    : 'Closing: —';
+
+                let selectedIndex = preferredDate ? dateList.indexOf(preferredDate) : -1;
+
+                if (selectedIndex === -1) {
+                    const defaultDate = `${getSeasonStartYear(season) + 1}-01-15`;
+                    selectedIndex = dateList.indexOf(defaultDate);
+                }
+
+                if (selectedIndex === -1) selectedIndex = 0;
+
+                slider.value = selectedIndex;
+                applyDate(dateList[selectedIndex]);
+
+                console.log(
+                    `Season ${season} loaded | ` +
+                    `Slider: ${dateList[0]} to ${dateList[dateList.length - 1]} | ` +
+                    `Resort: ${seasonInfo.resort_open_date || '—'} to ${seasonInfo.resort_close_date || '—'}`
+                );
+            } finally {
+                slider.disabled = false;
+                seasonSelect.disabled = false;
+            }
+        }
+
+        // --------------------------------------------------
+        // 9. CONTROLS + POPUPS
+        // --------------------------------------------------
+
+        slider.addEventListener('input', () => {
+            applyDate(dateList[Number(slider.value)]);
+        });
+
+        seasonSelect.addEventListener('change', async event => {
+            const previousSeason = currentSeason;
+
+            try {
+                await loadSeason(event.target.value);
+            } catch (error) {
+                console.error('Season change error:', error);
+                seasonSelect.value = previousSeason;
+            }
+        });
+
+        map.on('click', 'trail-fill', event => {
+            const p = event.features[0].properties;
+            const status = p.dashboard_status === 'No Data'
+                ? 'No Data / Not Operational'
+                : p.dashboard_status;
+
+            new mapboxgl.Popup()
+                .setLngLat(event.lngLat)
+                .setHTML(`
+                    <strong>${p.trail_name ?? 'Unnamed Trail'}</strong><br>
+                    Difficulty: ${p.difficulty ?? 'N/A'}<br>
+                    Zone: ${p.mountain_area ?? 'N/A'}<br>
+                    Acres: ${p.acres_25_26 ?? 'N/A'}<br>
+                    Status: ${status}<br>
+                    Trail ID: ${p.trail_id ?? 'N/A'}
+                `)
+                .addTo(map);
+        });
+
+        map.on('click', 'lift-lines', event => {
+            const p = event.features[0].properties;
+            const name = p.lift_name ?? p.current_name ?? 'Unnamed Lift';
+            const status = p.dashboard_status === 'No Data'
+                ? 'No Data / Not Operational'
+                : p.dashboard_status;
+
+            new mapboxgl.Popup()
+                .setLngLat(event.lngLat)
+                .setHTML(`
+                    <strong>${name}</strong><br>
+                    Status: ${status}<br>
+                    Lift ID: ${p.lift_id ?? 'N/A'}
+                `)
+                .addTo(map);
+        });
+
+        for (const layer of ['trail-fill', 'lift-lines']) {
+            map.on('mouseenter', layer, () => {
+                map.getCanvasContainer().style.cursor = 'pointer';
+            });
+
+            map.on('mouseleave', layer, () => {
+                map.getCanvasContainer().style.cursor = '';
+            });
+        }
+
+        // --------------------------------------------------
+        // 10. INITIAL MAP VIEW
+        // --------------------------------------------------
+
+        const bounds = new mapboxgl.LngLatBounds();
+
+        function extendBounds(coordinates) {
+            if (typeof coordinates[0] === 'number') {
+                bounds.extend(coordinates);
+            } else {
+                coordinates.forEach(extendBounds);
+            }
+        }
+
+        trailData.features.forEach(feature => {
+            extendBounds(feature.geometry.coordinates);
+        });
+
+        map.fitBounds(bounds, {
+            padding: 40,
+            duration: 0
+        });
+
+        seasonSelect.value = INITIAL_SEASON;
+        await loadSeason(INITIAL_SEASON, INITIAL_DATE);
+
+    } catch (error) {
+        console.error('Terrain Dashboard error:', error);
+
+        const slider = document.getElementById('date-slider');
+        const seasonSelect = document.getElementById('season-select');
+        if (slider) slider.disabled = false;
+        if (seasonSelect) seasonSelect.disabled = false;
     }
-);
+});
