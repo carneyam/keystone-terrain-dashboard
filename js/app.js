@@ -37,12 +37,6 @@ const AVAILABLE_SEASONS = [
     '06-07',
 ];
 
-// Add a season here only after both trail and lift CSVs are uploaded.
-// File naming convention:
-//   data/trail_status_24-25.csv
-//   data/lift_status_24-25.csv
-const AVAILABLE_SEASONS = ['24-25', '23-24'];
-
 const DATA_FILES = {
     trails: 'data/trails.geojson',
     lifts: 'data/lifts.geojson',
