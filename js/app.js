@@ -559,6 +559,8 @@ map.on('load', async () => {
         let liftStatusData = [];
         let dateList = [];
         let currentSeason = INITIAL_SEASON;
+        let trailSeasonSummaryData = [];
+        let trailSeasonSummaryLookup = new Map();
 
         function updateConditions(selectedDate) {
             const row = conditionsByKey.get(`${currentSeason}|${selectedDate}`);
