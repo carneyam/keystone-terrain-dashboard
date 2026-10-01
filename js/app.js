@@ -24,7 +24,7 @@ const liftStatusFiles = {
 
 const map = new mapboxgl.Map({
     container: 'map',
-    style: 'mapbox://styles/mapbox/standard',
+    style: 'mapbox://styles/mapbox/standard-satellite',
     center: [-105.95, 39.60],
     zoom: 12
 });
@@ -864,51 +864,96 @@ map.on(
             });
 
 
-            // ==================================================
-            // LIFT LINES
-            // ==================================================
+          // ==================================================
+// LIFT WHITE CASING
+// ==================================================
 
-            map.addLayer({
+map.addLayer({
 
-                id: 'lift-lines',
+    id: 'lift-casing',
 
-                type: 'line',
+    type: 'line',
 
-                source: 'lifts',
+    source: 'lifts',
 
-                slot: 'top',
+    slot: 'top',
 
-                paint: {
+    layout: {
 
-                    'line-color': [
+        'line-cap': 'round',
+        'line-join': 'round'
+    },
 
-                        'match',
+    paint: {
 
-                        [
-                            'get',
-                            'dashboard_status'
-                        ],
+        'line-color':
+            '#ffffff',
 
-                        'Open',
-                        '#39a844',
+        'line-width':
+            7,
 
-                        'Closed',
-                        '#d9342b',
+        'line-dasharray':
+            [2, 1.5],
 
-                        'Not Open',
-                        '#9ca3af',
+        'line-opacity':
+            0.95
+    }
+});
 
-                        '#b8b8b8'
-                    ],
 
-                    'line-width':
-                        4,
+// ==================================================
+// LIFT STATUS LINE
+// ==================================================
 
-                    'line-opacity':
-                        0.95
-                }
-            });
+map.addLayer({
 
+    id: 'lift-lines',
+
+    type: 'line',
+
+    source: 'lifts',
+
+    slot: 'top',
+
+    layout: {
+
+        'line-cap': 'round',
+        'line-join': 'round'
+    },
+
+    paint: {
+
+        'line-color': [
+
+            'match',
+
+            [
+                'get',
+                'dashboard_status'
+            ],
+
+            'Open',
+            '#39a844',
+
+            'Closed',
+            '#d9342b',
+
+            'Not Open',
+            '#9ca3af',
+
+            '#b8b8b8'
+        ],
+
+        'line-width':
+            4,
+
+        'line-dasharray':
+            [2, 1.5],
+
+        'line-opacity':
+            1
+    }
+});
 
             // ==================================================
             // CURRENT SEASON STATE
