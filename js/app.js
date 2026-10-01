@@ -41,7 +41,8 @@ const DATA_FILES = {
     trails: 'data/trails.geojson',
     lifts: 'data/lifts.geojson',
     conditions: 'data/daily_conditions.csv',
-    seasons: 'data/seasons.csv'
+    seasons: 'data/seasons.csv',
+    trailSeasonSummary: 'data/trail_season_summary.csv'
 };
 
 const COLORS = {
@@ -279,6 +280,8 @@ function parseCSV(text) {
         if (row.calendar_end) row.calendar_end = normalizeDate(row.calendar_end);
         if (row.resort_open_date) row.resort_open_date = normalizeDate(row.resort_open_date);
         if (row.resort_close_date) row.resort_close_date = normalizeDate(row.resort_close_date);
+        if (row.opening_date) row.opening_date = normalizeDate(row.opening_date);
+        if (row.closing_date) row.closing_date = normalizeDate(row.closing_date);
 
         return row;
     });
@@ -365,24 +368,39 @@ const groomedVisibleTrailFilter = [
 
 map.on('load', async () => {
     try {
-        const [trailResponse, liftResponse, conditionsResponse, seasonsResponse] =
-            await Promise.all([
-                fetch(DATA_FILES.trails),
-                fetch(DATA_FILES.lifts),
-                fetch(DATA_FILES.conditions),
-                fetch(DATA_FILES.seasons)
-            ]);
+        const [
+            trailResponse,
+            liftResponse,
+            conditionsResponse,
+            seasonsResponse,
+            trailSummaryResponse
+        ] = await Promise.all([
+            fetch(DATA_FILES.trails),
+            fetch(DATA_FILES.lifts),
+            fetch(DATA_FILES.conditions),
+            fetch(DATA_FILES.seasons),
+            fetch(DATA_FILES.trailSeasonSummary)
+        ]);
 
         if (!trailResponse.ok) throw new Error(`Could not load ${DATA_FILES.trails}: ${trailResponse.status}`);
         if (!liftResponse.ok) throw new Error(`Could not load ${DATA_FILES.lifts}: ${liftResponse.status}`);
         if (!seasonsResponse.ok) throw new Error(`Could not load ${DATA_FILES.seasons}: ${seasonsResponse.status}`);
+        if (!trailSummaryResponse.ok) throw new Error(`Could not load ${DATA_FILES.trailSeasonSummary}: ${trailSummaryResponse.status}`);
 
         const trailData = await trailResponse.json();
         const liftData = await liftResponse.json();
         const seasonsData = parseCSV(await seasonsResponse.text());
+        const trailSeasonSummaryData = parseCSV(await trailSummaryResponse.text());
         const conditionsData = conditionsResponse.ok
             ? parseCSV(await conditionsResponse.text())
             : [];
+
+        const trailSeasonSummaryLookup = new Map(
+            trailSeasonSummaryData.map(row => [
+                `${row.trail_id}|${row.season}`,
+                row
+            ])
+        );
 
         if (!conditionsResponse.ok) {
             console.warn(`Could not load ${DATA_FILES.conditions}: ${conditionsResponse.status}`);
@@ -412,6 +430,7 @@ map.on('load', async () => {
         console.log('Lifts loaded:', liftData.features.length);
         console.log('Seasons loaded:', seasonsData.length);
         console.log('Daily conditions loaded:', conditionsData.length);
+        console.log('Trail season summaries loaded:', trailSeasonSummaryData.length);
 
         // --------------------------------------------------
         // 6. DASHBOARD ELEMENTS
@@ -559,8 +578,6 @@ map.on('load', async () => {
         let liftStatusData = [];
         let dateList = [];
         let currentSeason = INITIAL_SEASON;
-        let trailSeasonSummaryData = [];
-        let trailSeasonSummaryLookup = new Map();
 
         function updateConditions(selectedDate) {
             const row = conditionsByKey.get(`${currentSeason}|${selectedDate}`);
@@ -775,22 +792,51 @@ map.on('load', async () => {
 
         map.on('click', 'trail-fill', event => {
             const p = event.features[0].properties;
-        
+
             const status = p.dashboard_status === 'No Data'
                 ? 'No Data / Not Operational'
                 : p.dashboard_status;
-        
+
+            const summaryKey = `${p.trail_id}|${currentSeason}`;
+            const summary = trailSeasonSummaryLookup.get(summaryKey);
+
+            const openingDate = summary
+                ? formatDate(summary.opening_date, true)
+                : '—';
+
+            const closingDate = summary
+                ? formatDate(summary.closing_date, true)
+                : '—';
+
+            const daysOpen = summary && summary.days_open !== ''
+                ? summary.days_open
+                : '0';
+
+            const seasonLabel = currentSeason.replace('-', '–');
+
             new mapboxgl.Popup()
                 .setLngLat(event.lngLat)
                 .setHTML(`
-                    <strong style="font-size: 15px;">
-                        ${p.trail_name ?? 'Unnamed Trail'}
-                    </strong>
-        
-                    <div style="margin-top: 6px;">
-                        <strong>Status:</strong> ${status}<br>
-                        <strong>Zone:</strong> ${p.mountain_area ?? 'N/A'}<br>
-                        <strong>Acres:</strong> ${p.acres_25_26 ?? 'N/A'}
+                    <div style="min-width: 180px;">
+                        <strong style="font-size: 15px;">
+                            ${p.trail_name ?? p.current_name ?? 'Unnamed Trail'}
+                        </strong>
+
+                        <div style="margin-top: 6px;">
+                            <strong>Status:</strong> ${status}
+                        </div>
+
+                        <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
+                            <strong>${seasonLabel} Season</strong><br>
+                            Opened: ${openingDate}<br>
+                            Closed: ${closingDate}<br>
+                            Days Open: ${daysOpen}
+                        </div>
+
+                        <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
+                            Zone: ${p.mountain_area ?? '—'}<br>
+                            Acres: ${p.acres_25_26 ?? '—'}
+                        </div>
                     </div>
                 `)
                 .addTo(map);
