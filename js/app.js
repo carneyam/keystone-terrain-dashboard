@@ -50,7 +50,8 @@ const COLORS = {
     closed: '#d9342b',
     racing: '#f59e0b',
     notOpen: '#9ca3af',
-    noData: '#b8b8b8'
+    noData: '#b8b8b8',
+    liftNotReported: '#4b5563'
 };
 
 // --------------------------------------------------
@@ -490,6 +491,7 @@ map.on('load', async () => {
                     'Open', COLORS.open,
                     'Closed', COLORS.closed,
                     'Not Open', COLORS.notOpen,
+                    'Not Reported', COLORS.liftNotReported,
                     COLORS.noData
                 ],
                 'line-width': 3,
@@ -548,6 +550,8 @@ map.on('load', async () => {
 
             const trailLookup = new Map();
             const liftLookup = new Map();
+            const hasLiftStatus =
+                getSeasonStartYear(currentSeason) >= FIRST_LIFT_STATUS_SEASON_YEAR;
 
             for (const row of trailStatusData) {
                 if (row.date === selectedDate) {
@@ -555,9 +559,11 @@ map.on('load', async () => {
                 }
             }
 
-            for (const row of liftStatusData) {
-                if (row.date === selectedDate) {
-                    liftLookup.set(row.lift_id, normalizeStatus(row));
+            if (hasLiftStatus) {
+                for (const row of liftStatusData) {
+                    if (row.date === selectedDate) {
+                        liftLookup.set(row.lift_id, normalizeStatus(row));
+                    }
                 }
             }
 
@@ -568,7 +574,9 @@ map.on('load', async () => {
 
             liftData.features.forEach(feature => {
                 const id = feature.properties.lift_id;
-                feature.properties.dashboard_status = liftLookup.get(id) ?? 'No Data';
+                feature.properties.dashboard_status = hasLiftStatus
+                    ? (liftLookup.get(id) ?? 'No Data')
+                    : 'Not Reported';
             });
 
             map.getSource('trails').setData(trailData);
@@ -605,21 +613,27 @@ map.on('load', async () => {
             seasonSelect.disabled = true;
 
             try {
-                const [trailResponse, liftResponse] = await Promise.all([
-                    fetch(trailFile),
-                    fetch(liftFile)
-                ]);
+                const trailResponse = await fetch(trailFile);
 
                 if (!trailResponse.ok) {
                     throw new Error(`Could not load ${trailFile}: ${trailResponse.status}`);
                 }
 
-                if (!liftResponse.ok) {
-                    throw new Error(`Could not load ${liftFile}: ${liftResponse.status}`);
-                }
-
                 trailStatusData = parseCSV(await trailResponse.text());
-                liftStatusData = parseCSV(await liftResponse.text());
+
+                if (hasLiftStatus) {
+                    const liftResponse = await fetch(liftFile);
+
+                    if (!liftResponse.ok) {
+                        throw new Error(`Could not load ${liftFile}: ${liftResponse.status}`);
+                    }
+
+                    liftStatusData = parseCSV(await liftResponse.text());
+                } else {
+                    // Lift status was not historically reported before 2016-17.
+                    // Keep all lift alignments visible and style them as Not Reported.
+                    liftStatusData = [];
+                }
 
                 currentSeason = season;
                 seasonSelect.value = season;
@@ -661,7 +675,8 @@ map.on('load', async () => {
                 console.log(
                     `Season ${season} loaded | ` +
                     `Slider: ${dateList[0]} to ${dateList[dateList.length - 1]} | ` +
-                    `Resort: ${seasonInfo.resort_open_date || '—'} to ${seasonInfo.resort_close_date || '—'}`
+                    `Resort: ${seasonInfo.resort_open_date || '—'} to ${seasonInfo.resort_close_date || '—'} | ` +
+                    `Lift status: ${hasLiftStatus ? 'historical daily records' : 'not historically reported'}`
                 );
             } finally {
                 slider.disabled = false;
@@ -710,9 +725,10 @@ map.on('load', async () => {
         map.on('click', 'lift-lines', event => {
             const p = event.features[0].properties;
             const name = p.lift_name ?? p.current_name ?? 'Unnamed Lift';
-            const status = p.dashboard_status === 'No Data'
-                ? 'No Data / Not Operational'
-                : p.dashboard_status;
+
+            let status = p.dashboard_status;
+            if (status === 'No Data') status = 'No Data / Not Operational';
+            if (status === 'Not Reported') status = 'Not historically reported';
 
             new mapboxgl.Popup()
                 .setLngLat(event.lngLat)
