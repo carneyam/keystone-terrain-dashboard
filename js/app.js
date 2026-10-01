@@ -890,7 +890,7 @@ map.addLayer({
             '#ffffff',
 
         'line-width':
-            7,
+            4,
 
         'line-dasharray':
             [2, 1.5],
@@ -945,7 +945,7 @@ map.addLayer({
         ],
 
         'line-width':
-            4,
+            3,
 
         'line-dasharray':
             [2, 1.5],
