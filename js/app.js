@@ -15,10 +15,26 @@ const INITIAL_DATE = '2025-10-25';
 const FIRST_LIFT_STATUS_SEASON_YEAR = 2016;
 
 const AVAILABLE_SEASONS = [
+    '25-26'
     '24-25',
     '23-24',
     '22-23',
     '21-22'
+    '20-21'
+    '19-20'
+    '18-19'
+    '17-19'
+    '16-17'
+    '15-16'
+    '14-15'
+    '13-14'
+    '12-13'
+    '11-12'
+    '10-11'
+    '09-10'
+    '08-09'
+    '07-08'
+    '06-07'
 ];
 
 // Add a season here only after both trail and lift CSVs are uploaded.
