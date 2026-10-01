@@ -773,19 +773,23 @@ map.on('load', async () => {
 
         map.on('click', 'trail-fill', event => {
             const p = event.features[0].properties;
+        
             const status = p.dashboard_status === 'No Data'
                 ? 'No Data / Not Operational'
                 : p.dashboard_status;
-
+        
             new mapboxgl.Popup()
                 .setLngLat(event.lngLat)
                 .setHTML(`
-                    <strong>${p.trail_name ?? 'Unnamed Trail'}</strong><br>
-                    Difficulty: ${p.difficulty ?? 'N/A'}<br>
-                    Zone: ${p.mountain_area ?? 'N/A'}<br>
-                    Acres: ${p.acres_25_26 ?? 'N/A'}<br>
-                    Status: ${status}<br>
-                    Trail ID: ${p.trail_id ?? 'N/A'}
+                    <strong style="font-size: 15px;">
+                        ${p.trail_name ?? 'Unnamed Trail'}
+                    </strong>
+        
+                    <div style="margin-top: 6px;">
+                        <strong>Status:</strong> ${status}<br>
+                        <strong>Zone:</strong> ${p.mountain_area ?? 'N/A'}<br>
+                        <strong>Acres:</strong> ${p.acres_25_26 ?? 'N/A'}
+                    </div>
                 `)
                 .addTo(map);
         });
