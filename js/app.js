@@ -1,11 +1,20 @@
 mapboxgl.accessToken = 'pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2JmaWllaGQ2NyJ9._ubQTmLlivNH7Wp3eCSckw';
 
+// ==================================================
+// CONFIGURATION
+// ==================================================
+
 const INITIAL_SEASON = '24-25';
 const INITIAL_DATE = '2025-01-15';
 
-const seasonFiles = {
+const trailStatusFiles = {
     '24-25': 'data/trail_status_24-25.csv',
     '23-24': 'data/trail_status_23-24.csv'
+};
+
+const liftStatusFiles = {
+    '24-25': 'data/lift_status_24-25.csv',
+    '23-24': 'data/lift_status_23-24.csv'
 };
 
 
@@ -32,7 +41,9 @@ map.addControl(
 
 function normalizeSeason(value) {
 
-    if (!value) return '';
+    if (!value) {
+        return '';
+    }
 
     return String(value)
         .replaceAll('–', '-')
@@ -43,13 +54,17 @@ function normalizeSeason(value) {
 
 function normalizeDate(value) {
 
-    if (value === null || value === undefined) {
+    if (
+        value === null ||
+        value === undefined
+    ) {
         return '';
     }
 
-    const dateString = String(value)
-        .trim()
-        .replace(/^"|"$/g, '');
+    const dateString =
+        String(value)
+            .trim()
+            .replace(/^"|"$/g, '');
 
     if (!dateString) {
         return '';
@@ -139,6 +154,74 @@ function normalizeDate(value) {
     );
 
     return '';
+}
+
+
+// ==================================================
+// NORMALIZE STATUS
+// ==================================================
+
+function normalizeStatus(row) {
+
+    const value =
+        row.dashboard_status
+        ||
+        row.reported_map_status
+        ||
+        row.status_map
+        ||
+        row.status
+        ||
+        row.raw_status
+        ||
+        '';
+
+    const status =
+        String(value)
+            .trim()
+            .toUpperCase();
+
+
+    if (
+        status === 'O' ||
+        status === 'OPEN'
+    ) {
+        return 'Open';
+    }
+
+
+    if (
+        status === 'G' ||
+        status === 'GROOMED'
+    ) {
+        return 'Groomed';
+    }
+
+
+    if (
+        status === 'C' ||
+        status === 'CLOSED'
+    ) {
+        return 'Closed';
+    }
+
+
+    if (
+        status === 'R' ||
+        status === 'RACING'
+    ) {
+        return 'Racing';
+    }
+
+
+    if (
+        status === 'NOT OPEN'
+    ) {
+        return 'Not Open';
+    }
+
+
+    return value || 'No Data';
 }
 
 
@@ -233,7 +316,6 @@ function parseCSV(text) {
     if (
         lines.length === 0
     ) {
-
         return [];
     }
 
@@ -273,9 +355,7 @@ function parseCSV(text) {
                 );
 
 
-                if (
-                    row.date
-                ) {
+                if (row.date) {
 
                     row.date =
                         normalizeDate(
@@ -284,9 +364,7 @@ function parseCSV(text) {
                 }
 
 
-                if (
-                    row.season
-                ) {
+                if (row.season) {
 
                     row.season =
                         normalizeSeason(
@@ -313,7 +391,6 @@ function formatDate(dateString) {
                 dateString || ''
             )
     ) {
-
         return '—';
     }
 
@@ -324,15 +401,14 @@ function formatDate(dateString) {
         );
 
 
-    return date
-        .toLocaleDateString(
-            'en-US',
-            {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric'
-            }
-        );
+    return date.toLocaleDateString(
+        'en-US',
+        {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+        }
+    );
 }
 
 
@@ -344,7 +420,6 @@ function formatShortDate(dateString) {
                 dateString || ''
             )
     ) {
-
         return '—';
     }
 
@@ -355,20 +430,19 @@ function formatShortDate(dateString) {
         );
 
 
-    return date
-        .toLocaleDateString(
-            'en-US',
-            {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-            }
-        );
+    return date.toLocaleDateString(
+        'en-US',
+        {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        }
+    );
 }
 
 
 // ==================================================
-// CONDITION HELPERS
+// DAILY CONDITIONS HELPERS
 // ==================================================
 
 function getFirstValue(
@@ -376,12 +450,13 @@ function getFirstValue(
     keys
 ) {
 
-    if (!row) return '';
+    if (!row) {
+        return '';
+    }
 
 
     for (
-        const key
-        of keys
+        const key of keys
     ) {
 
         if (
@@ -391,12 +466,9 @@ function getFirstValue(
                     row,
                     key
                 )
-
             &&
-
             row[key] !== ''
         ) {
-
             return row[key];
         }
     }
@@ -406,16 +478,13 @@ function getFirstValue(
 }
 
 
-function formatSnowValue(
-    value
-) {
+function formatSnowValue(value) {
 
     if (
         value === '' ||
         value === null ||
         value === undefined
     ) {
-
         return '—';
     }
 
@@ -432,36 +501,30 @@ function formatSnowValue(
             number
         )
     ) {
-
         return value;
     }
 
 
     return (
-        number
-            .toLocaleString(
-                'en-US',
-                {
-                    maximumFractionDigits:
-                        1
-                }
-            )
+        number.toLocaleString(
+            'en-US',
+            {
+                maximumFractionDigits: 1
+            }
+        )
         +
         '"'
     );
 }
 
 
-function formatAcres(
-    value
-) {
+function formatAcres(value) {
 
     if (
         value === '' ||
         value === null ||
         value === undefined
     ) {
-
         return '—';
     }
 
@@ -478,19 +541,16 @@ function formatAcres(
             number
         )
     ) {
-
         return value;
     }
 
 
-    return number
-        .toLocaleString(
-            'en-US',
-            {
-                maximumFractionDigits:
-                    0
-            }
-        );
+    return number.toLocaleString(
+        'en-US',
+        {
+            maximumFractionDigits: 0
+        }
+    );
 }
 
 
@@ -504,275 +564,245 @@ map.on(
 
         try {
 
-           // ------------------------------------------
-// LOAD STATIC DATA
-// ------------------------------------------
+            // ==================================================
+            // LOAD STATIC DATA
+            // ==================================================
 
-const [
-    trailResponse,
-    liftResponse,
-    conditionsResponse
-] = await Promise.all([
+            const [
+                trailResponse,
+                liftResponse,
+                conditionsResponse
+            ] = await Promise.all([
 
-    fetch(
-        'data/trails.geojson'
-    ),
+                fetch(
+                    'data/trails.geojson'
+                ),
 
-    fetch(
-        'data/lifts.geojson'
-    ),
+                fetch(
+                    'data/lifts.geojson'
+                ),
 
-    fetch(
-        'data/daily_conditions.csv'
-    )
+                fetch(
+                    'data/daily_conditions.csv'
+                )
 
-]);
-
-
-// ------------------------------------------
-// CHECK / READ TRAILS
-// ------------------------------------------
-
-if (
-    !trailResponse.ok
-) {
-
-    throw new Error(
-        `Could not load trails.geojson: ${trailResponse.status}`
-    );
-}
+            ]);
 
 
-const trailData =
-    await trailResponse.json();
+            if (
+                !trailResponse.ok
+            ) {
+
+                throw new Error(
+                    `Could not load trails.geojson: ${trailResponse.status}`
+                );
+            }
 
 
-// ------------------------------------------
-// CHECK / READ LIFTS
-// ------------------------------------------
+            if (
+                !liftResponse.ok
+            ) {
 
-if (
-    !liftResponse.ok
-) {
-
-    throw new Error(
-        `Could not load lifts.geojson: ${liftResponse.status}`
-    );
-}
+                throw new Error(
+                    `Could not load lifts.geojson: ${liftResponse.status}`
+                );
+            }
 
 
-const liftData =
-    await liftResponse.json();
+            const trailData =
+                await trailResponse.json();
 
 
-console.log(
-    'Lifts loaded:',
-    liftData.features.length
-);
+            const liftData =
+                await liftResponse.json();
 
 
-if (
-    liftData.features.length > 0
-) {
-
-    console.log(
-        'Lift fields:',
-        Object.keys(
-            liftData.features[0].properties
-        )
-    );
-}
+            console.log(
+                'Trails loaded:',
+                trailData.features.length
+            );
 
 
-// ------------------------------------------
-// READ DAILY CONDITIONS
-// ------------------------------------------
-
-let conditionsData = [];
-
-
-if (
-    conditionsResponse.ok
-) {
-
-    const conditionsText =
-        await conditionsResponse.text();
+            console.log(
+                'Lifts loaded:',
+                liftData.features.length
+            );
 
 
-    conditionsData =
-        parseCSV(
-            conditionsText
-        );
+            if (
+                liftData.features.length > 0
+            ) {
+
+                console.log(
+                    'Lift fields:',
+                    Object.keys(
+                        liftData.features[0].properties
+                    )
+                );
+            }
 
 
-    console.log(
-        'Daily conditions loaded:',
-        conditionsData.length
-    );
+            // ==================================================
+            // DAILY CONDITIONS
+            // ==================================================
+
+            let conditionsData = [];
 
 
-    if (
-        conditionsData.length > 0
-    ) {
+            if (
+                conditionsResponse.ok
+            ) {
 
-        console.log(
-            'Daily condition fields:',
-            Object.keys(
-                conditionsData[0]
-            )
-        );
+                const conditionsText =
+                    await conditionsResponse.text();
 
 
-        console.log(
-            'First daily condition row:',
-            conditionsData[0]
-        );
-    }
+                conditionsData =
+                    parseCSV(
+                        conditionsText
+                    );
 
-} else {
 
-    console.warn(
-        `Could not load daily_conditions.csv: ${conditionsResponse.status}`
-    );
-}
+                console.log(
+                    'Daily conditions loaded:',
+                    conditionsData.length
+                );
 
-            // ------------------------------------------
-            // INITIALIZE TRAIL STATUS
-            // ------------------------------------------
+            } else {
 
-            trailData.features
-                .forEach(
-                    feature => {
+                console.warn(
+                    `Could not load daily_conditions.csv: ${conditionsResponse.status}`
+                );
+            }
 
-                        feature
-                            .properties
-                            .dashboard_status =
-                            'No Data';
-                    }
+
+            // ==================================================
+            // INITIAL STATUS VALUES
+            // ==================================================
+
+            trailData.features.forEach(
+                feature => {
+
+                    feature.properties.dashboard_status =
+                        'No Data';
+                }
+            );
+
+
+            liftData.features.forEach(
+                feature => {
+
+                    feature.properties.dashboard_status =
+                        'No Data';
+                }
+            );
+
+
+            // ==================================================
+            // DASHBOARD ELEMENTS
+            // ==================================================
+
+            const seasonSelect =
+                document.getElementById(
+                    'season-select'
                 );
 
 
-            // ------------------------------------------
-            // DASHBOARD ELEMENTS
-            // ------------------------------------------
-
-            const seasonSelect =
-                document
-                    .getElementById(
-                        'season-select'
-                    );
-
-
             const slider =
-                document
-                    .getElementById(
-                        'date-slider'
-                    );
+                document.getElementById(
+                    'date-slider'
+                );
 
 
             const dateLabel =
-                document
-                    .getElementById(
-                        'date-label'
-                    );
+                document.getElementById(
+                    'date-label'
+                );
 
 
             const firstDateLabel =
-                document
-                    .getElementById(
-                        'first-date-label'
-                    );
+                document.getElementById(
+                    'first-date-label'
+                );
 
 
             const lastDateLabel =
-                document
-                    .getElementById(
-                        'last-date-label'
-                    );
+                document.getElementById(
+                    'last-date-label'
+                );
 
 
             const openDateLabel =
-                document
-                    .getElementById(
-                        'open-date-label'
-                    );
+                document.getElementById(
+                    'open-date-label'
+                );
 
 
             const closeDateLabel =
-                document
-                    .getElementById(
-                        'close-date-label'
-                    );
+                document.getElementById(
+                    'close-date-label'
+                );
 
 
             const hn24Value =
-                document
-                    .getElementById(
-                        'hn24-value'
-                    );
+                document.getElementById(
+                    'hn24-value'
+                );
 
 
             const seasonSnowValue =
-                document
-                    .getElementById(
-                        'season-snow-value'
-                    );
+                document.getElementById(
+                    'season-snow-value'
+                );
 
 
             const hsValue =
-                document
-                    .getElementById(
-                        'hs-value'
-                    );
+                document.getElementById(
+                    'hs-value'
+                );
 
 
             const acresOpenValue =
-                document
-                    .getElementById(
-                        'acres-open-value'
-                    );
+                document.getElementById(
+                    'acres-open-value'
+                );
 
 
-            // ------------------------------------------
-            // MAP SOURCE
-            // ------------------------------------------
+            // ==================================================
+            // MAP SOURCES
+            // ==================================================
 
             map.addSource(
                 'trails',
                 {
-                    type:
-                        'geojson',
-
-                    data:
-                        trailData
+                    type: 'geojson',
+                    data: trailData
                 }
             );
 
-            map.addSource(
-    'lifts',
-    {
-        type: 'geojson',
-        data: liftData
-    }
-);
 
-            // ------------------------------------------
+            map.addSource(
+                'lifts',
+                {
+                    type: 'geojson',
+                    data: liftData
+                }
+            );
+
+
+            // ==================================================
             // TRAIL FILL
-            // ------------------------------------------
+            // ==================================================
 
             map.addLayer({
 
-                id:
-                    'trail-fill',
+                id: 'trail-fill',
 
-                type:
-                    'fill',
+                type: 'fill',
 
-                source:
-                    'trails',
+                source: 'trails',
 
-                slot:
-                    'top',
+                slot: 'top',
 
                 paint: {
 
@@ -809,23 +839,19 @@ if (
             });
 
 
-            // ------------------------------------------
-            // TRAIL OUTLINES
-            // ------------------------------------------
+            // ==================================================
+            // TRAIL OUTLINE
+            // ==================================================
 
             map.addLayer({
 
-                id:
-                    'trail-outline',
+                id: 'trail-outline',
 
-                type:
-                    'line',
+                type: 'line',
 
-                source:
-                    'trails',
+                source: 'trails',
 
-                slot:
-                    'top',
+                slot: 'top',
 
                 paint: {
 
@@ -838,42 +864,59 @@ if (
             });
 
 
-            // ------------------------------------------
-// LIFT ALIGNMENTS
-// ------------------------------------------
+            // ==================================================
+            // LIFT LINES
+            // ==================================================
 
-map.addLayer({
+            map.addLayer({
 
-    id:
-        'lift-lines',
+                id: 'lift-lines',
 
-    type:
-        'line',
+                type: 'line',
 
-    source:
-        'lifts',
+                source: 'lifts',
 
-    slot:
-        'top',
+                slot: 'top',
 
-    paint: {
+                paint: {
 
-        'line-color':
-            '#2563eb',
+                    'line-color': [
 
-        'line-width':
-            3,
+                        'match',
 
-        'line-opacity':
-            0.9
-    }
-});
-            
-            // ------------------------------------------
+                        [
+                            'get',
+                            'dashboard_status'
+                        ],
+
+                        'Open',
+                        '#39a844',
+
+                        'Closed',
+                        '#d9342b',
+
+                        'Not Open',
+                        '#9ca3af',
+
+                        '#b8b8b8'
+                    ],
+
+                    'line-width':
+                        4,
+
+                    'line-opacity':
+                        0.95
+                }
+            });
+
+
+            // ==================================================
             // CURRENT SEASON STATE
-            // ------------------------------------------
+            // ==================================================
 
-            let statusData = [];
+            let trailStatusData = [];
+
+            let liftStatusData = [];
 
             let dateList = [];
 
@@ -881,55 +924,42 @@ map.addLayer({
                 INITIAL_SEASON;
 
 
-            // ------------------------------------------
-            // DAILY CONDITIONS
-            // ------------------------------------------
+            // ==================================================
+            // UPDATE DAILY CONDITIONS
+            // ==================================================
 
             function updateConditions(
                 selectedDate
             ) {
 
                 const conditionRow =
-                    conditionsData
-                        .find(
-                            row =>
+                    conditionsData.find(
+                        row =>
 
-                                row.season ===
-                                currentSeason
+                            row.season ===
+                            currentSeason
 
-                                &&
+                            &&
 
-                                row.date ===
-                                selectedDate
-                        );
-
-
-                console.log(
-                    'Conditions lookup:',
-                    currentSeason,
-                    selectedDate,
-                    conditionRow
-                );
+                            row.date ===
+                            selectedDate
+                    );
 
 
                 if (
                     !conditionRow
                 ) {
 
-                    hn24Value
-                        .textContent =
+                    hn24Value.textContent =
                         '—';
 
-                    seasonSnowValue
-                        .textContent =
+                    seasonSnowValue.textContent =
                         '—';
 
-                    hsValue
-                        .textContent =
+                    hsValue.textContent =
                         '—';
 
-                    acresOpenValue
-                        .textContent =
+                    acresOpenValue.textContent =
                         '—';
 
                     return;
@@ -984,38 +1014,34 @@ map.addLayer({
                     );
 
 
-                hn24Value
-                    .textContent =
+                hn24Value.textContent =
                     formatSnowValue(
                         hn24
                     );
 
 
-                seasonSnowValue
-                    .textContent =
+                seasonSnowValue.textContent =
                     formatSnowValue(
                         seasonSnow
                     );
 
 
-                hsValue
-                    .textContent =
+                hsValue.textContent =
                     formatSnowValue(
                         hs
                     );
 
 
-                acresOpenValue
-                    .textContent =
+                acresOpenValue.textContent =
                     formatAcres(
                         acresOpen
                     );
             }
 
 
-            // ------------------------------------------
-            // APPLY SELECTED DATE
-            // ------------------------------------------
+            // ==================================================
+            // APPLY DATE
+            // ==================================================
 
             function applyDate(
                 selectedDate
@@ -1024,58 +1050,115 @@ map.addLayer({
                 if (
                     !selectedDate
                 ) {
-
                     return;
                 }
 
 
-                const selectedDateRecords =
-                    statusData
-                        .filter(
-                            row =>
-                                row.date ===
-                                selectedDate
-                        );
+                // ------------------------------------------
+                // TRAIL STATUS LOOKUP
+                // ------------------------------------------
+
+                const selectedTrailRecords =
+                    trailStatusData.filter(
+                        row =>
+                            row.date ===
+                            selectedDate
+                    );
 
 
-                const statusLookup =
+                const trailLookup =
                     {};
 
 
-                selectedDateRecords
-                    .forEach(
-                        row => {
+                selectedTrailRecords.forEach(
+                    row => {
 
-                            statusLookup[
-                                row.trail_id
-                            ] =
-                                row.dashboard_status;
-                        }
-                    );
-
-
-                trailData.features
-                    .forEach(
-                        feature => {
-
-                            const trailID =
-                                feature
-                                    .properties
-                                    .trail_id;
+                        trailLookup[
+                            row.trail_id
+                        ] =
+                            normalizeStatus(
+                                row
+                            );
+                    }
+                );
 
 
+                trailData.features.forEach(
+                    feature => {
+
+                        const trailID =
                             feature
                                 .properties
-                                .dashboard_status =
+                                .trail_id;
 
-                                statusLookup[
-                                    trailID
-                                ]
-                                ??
-                                'No Data';
-                        }
+
+                        feature
+                            .properties
+                            .dashboard_status =
+
+                            trailLookup[
+                                trailID
+                            ]
+                            ??
+                            'No Data';
+                    }
+                );
+
+
+                // ------------------------------------------
+                // LIFT STATUS LOOKUP
+                // ------------------------------------------
+
+                const selectedLiftRecords =
+                    liftStatusData.filter(
+                        row =>
+                            row.date ===
+                            selectedDate
                     );
 
+
+                const liftLookup =
+                    {};
+
+
+                selectedLiftRecords.forEach(
+                    row => {
+
+                        liftLookup[
+                            row.lift_id
+                        ] =
+                            normalizeStatus(
+                                row
+                            );
+                    }
+                );
+
+
+                liftData.features.forEach(
+                    feature => {
+
+                        const liftID =
+                            feature
+                                .properties
+                                .lift_id;
+
+
+                        feature
+                            .properties
+                            .dashboard_status =
+
+                            liftLookup[
+                                liftID
+                            ]
+                            ??
+                            'No Data';
+                    }
+                );
+
+
+                // ------------------------------------------
+                // REFRESH MAP SOURCES
+                // ------------------------------------------
 
                 map
                     .getSource(
@@ -1086,8 +1169,20 @@ map.addLayer({
                     );
 
 
-                dateLabel
-                    .textContent =
+                map
+                    .getSource(
+                        'lifts'
+                    )
+                    .setData(
+                        liftData
+                    );
+
+
+                // ------------------------------------------
+                // UPDATE DASHBOARD
+                // ------------------------------------------
+
+                dateLabel.textContent =
                     formatDate(
                         selectedDate
                     );
@@ -1098,57 +1193,25 @@ map.addLayer({
                 );
 
 
-                const statusCounts =
-                    {};
-
-
-                selectedDateRecords
-                    .forEach(
-                        row => {
-
-                            const status =
-                                row
-                                    .dashboard_status
-                                ||
-                                'Blank';
-
-
-                            statusCounts[
-                                status
-                            ] =
-                                (
-                                    statusCounts[
-                                        status
-                                    ]
-                                    ||
-                                    0
-                                )
-                                +
-                                1;
-                        }
-                    );
-
-
                 console.log(
                     `Season ${currentSeason} | Date ${selectedDate}`
                 );
 
 
                 console.log(
-                    `Records found: ${selectedDateRecords.length}`
+                    `Trail records: ${selectedTrailRecords.length}`
                 );
 
 
                 console.log(
-                    'Status counts:',
-                    statusCounts
+                    `Lift records: ${selectedLiftRecords.length}`
                 );
             }
 
 
-            // ------------------------------------------
-            // TEMPORARY OPERATING WINDOW
-            // ------------------------------------------
+            // ==================================================
+            // TEMPORARY RESORT OPERATING WINDOW
+            // ==================================================
 
             function getOperatingWindow(
                 seasonStatusData
@@ -1174,7 +1237,9 @@ map.addLayer({
                                     row =>
                                         operationalStatuses
                                             .has(
-                                                row.dashboard_status
+                                                normalizeStatus(
+                                                    row
+                                                )
                                             )
                                 )
 
@@ -1225,9 +1290,9 @@ map.addLayer({
             }
 
 
-            // ------------------------------------------
+            // ==================================================
             // LOAD SEASON
-            // ------------------------------------------
+            // ==================================================
 
             async function loadSeason(
                 requestedSeason,
@@ -1240,59 +1305,98 @@ map.addLayer({
                     );
 
 
-                const file =
-                    seasonFiles[
+                const trailFile =
+                    trailStatusFiles[
+                        season
+                    ];
+
+
+                const liftFile =
+                    liftStatusFiles[
                         season
                     ];
 
 
                 if (
-                    !file
+                    !trailFile
                 ) {
 
                     throw new Error(
-                        `No file configured for season ${season}`
+                        `No trail file configured for season ${season}`
                     );
                 }
 
 
-                slider
-                    .disabled =
+                if (
+                    !liftFile
+                ) {
+
+                    throw new Error(
+                        `No lift file configured for season ${season}`
+                    );
+                }
+
+
+                slider.disabled =
                     true;
 
 
-                seasonSelect
-                    .disabled =
+                seasonSelect.disabled =
                     true;
 
 
                 console.log(
-                    `Loading season ${season} from ${file}`
+                    `Loading season ${season}`
                 );
 
 
                 try {
 
-                    const response =
-                        await fetch(
-                            file
-                        );
+                    const [
+                        trailStatusResponse,
+                        liftStatusResponse
+                    ] = await Promise.all([
+
+                        fetch(
+                            trailFile
+                        ),
+
+                        fetch(
+                            liftFile
+                        )
+
+                    ]);
 
 
                     if (
-                        !response.ok
+                        !trailStatusResponse.ok
                     ) {
 
                         throw new Error(
-                            `Could not load ${file}: ${response.status}`
+                            `Could not load ${trailFile}: ${trailStatusResponse.status}`
                         );
                     }
 
 
-                    const newStatusData =
+                    if (
+                        !liftStatusResponse.ok
+                    ) {
+
+                        throw new Error(
+                            `Could not load ${liftFile}: ${liftStatusResponse.status}`
+                        );
+                    }
+
+
+                    const newTrailStatusData =
                         parseCSV(
-                            await response
-                                .text()
+                            await trailStatusResponse.text()
+                        );
+
+
+                    const newLiftStatusData =
+                        parseCSV(
+                            await liftStatusResponse.text()
                         );
 
 
@@ -1301,7 +1405,7 @@ map.addLayer({
 
                             ...new Set(
 
-                                newStatusData
+                                newTrailStatusData
 
                                     .map(
                                         row =>
@@ -1331,8 +1435,16 @@ map.addLayer({
                     }
 
 
-                    statusData =
-                        newStatusData;
+                    // ------------------------------------------
+                    // COMMIT NEW SEASON
+                    // ------------------------------------------
+
+                    trailStatusData =
+                        newTrailStatusData;
+
+
+                    liftStatusData =
+                        newLiftStatusData;
 
 
                     dateList =
@@ -1343,36 +1455,34 @@ map.addLayer({
                         season;
 
 
-                    seasonSelect
-                        .value =
+                    seasonSelect.value =
                         season;
 
 
-                    slider
-                        .min =
+                    // ------------------------------------------
+                    // SLIDER
+                    // ------------------------------------------
+
+                    slider.min =
                         0;
 
 
-                    slider
-                        .max =
+                    slider.max =
                         dateList.length -
                         1;
 
 
-                    slider
-                        .step =
+                    slider.step =
                         1;
 
 
-                    firstDateLabel
-                        .textContent =
+                    firstDateLabel.textContent =
                         formatDate(
                             dateList[0]
                         );
 
 
-                    lastDateLabel
-                        .textContent =
+                    lastDateLabel.textContent =
                         formatDate(
                             dateList[
                                 dateList.length -
@@ -1381,22 +1491,23 @@ map.addLayer({
                         );
 
 
+                    // ------------------------------------------
+                    // TEMPORARY OPEN / CLOSE DATES
+                    // ------------------------------------------
+
                     const operatingWindow =
                         getOperatingWindow(
-                            statusData
+                            trailStatusData
                         );
 
 
-                    openDateLabel
-                        .textContent =
-                        operatingWindow
-                            .openingDate
+                    openDateLabel.textContent =
+                        operatingWindow.openingDate
 
                             ?
 
                             `Opening: ${formatShortDate(
-                                operatingWindow
-                                    .openingDate
+                                operatingWindow.openingDate
                             )}`
 
                             :
@@ -1404,22 +1515,23 @@ map.addLayer({
                             'Opening: —';
 
 
-                    closeDateLabel
-                        .textContent =
-                        operatingWindow
-                            .closingDate
+                    closeDateLabel.textContent =
+                        operatingWindow.closingDate
 
                             ?
 
                             `Closing: ${formatShortDate(
-                                operatingWindow
-                                    .closingDate
+                                operatingWindow.closingDate
                             )}`
 
                             :
 
                             'Closing: —';
 
+
+                    // ------------------------------------------
+                    // STARTING DATE
+                    // ------------------------------------------
 
                     let selectedIndex =
 
@@ -1467,8 +1579,7 @@ map.addLayer({
                     }
 
 
-                    slider
-                        .value =
+                    slider.value =
                         selectedIndex;
 
 
@@ -1480,96 +1591,94 @@ map.addLayer({
 
 
                     console.log(
-                        `Season ${season} loaded successfully`
+                        `Season ${season} loaded`
                     );
 
 
                     console.log(
-                        `Available dates: ${dateList.length}`
+                        `Trail status rows: ${trailStatusData.length}`
+                    );
+
+
+                    console.log(
+                        `Lift status rows: ${liftStatusData.length}`
                     );
 
                 } finally {
 
-                    slider
-                        .disabled =
+                    slider.disabled =
                         false;
 
 
-                    seasonSelect
-                        .disabled =
+                    seasonSelect.disabled =
                         false;
                 }
             }
 
 
-            // ------------------------------------------
-            // SLIDER EVENT
-            // ------------------------------------------
+            // ==================================================
+            // DATE SLIDER
+            // ==================================================
 
-            slider
-                .addEventListener(
-                    'input',
-                    () => {
+            slider.addEventListener(
+                'input',
+                () => {
 
-                        const selectedIndex =
-                            Number(
-                                slider.value
-                            );
-
-
-                        applyDate(
-                            dateList[
-                                selectedIndex
-                            ]
+                    const selectedIndex =
+                        Number(
+                            slider.value
                         );
-                    }
-                );
 
 
-            // ------------------------------------------
-            // SEASON EVENT
-            // ------------------------------------------
-
-            seasonSelect
-                .addEventListener(
-                    'change',
-                    async event => {
-
-                        const previousSeason =
-                            currentSeason;
+                    applyDate(
+                        dateList[
+                            selectedIndex
+                        ]
+                    );
+                }
+            );
 
 
-                        try {
+            // ==================================================
+            // SEASON DROPDOWN
+            // ==================================================
 
-                            await loadSeason(
-                                normalizeSeason(
-                                    event
-                                        .target
-                                        .value
-                                )
-                            );
+            seasonSelect.addEventListener(
+                'change',
+                async event => {
 
-                        } catch (
+                    const previousSeason =
+                        currentSeason;
+
+
+                    try {
+
+                        await loadSeason(
+                            normalizeSeason(
+                                event.target.value
+                            )
+                        );
+
+                    } catch (
+                        error
+                    ) {
+
+                        console.error(
+                            'Season change error:',
                             error
-                        ) {
-
-                            console.error(
-                                'Season change error:',
-                                error
-                            );
+                        );
 
 
-                            seasonSelect
-                                .value =
-                                previousSeason;
-                        }
+                        seasonSelect.value =
+                            previousSeason;
                     }
-                );
+                }
+            );
 
 
-            // ------------------------------------------
+            // ==================================================
             // TRAIL POPUP
-            // ------------------------------------------
+            // ==================================================
 
             map.on(
                 'click',
@@ -1577,15 +1686,13 @@ map.addLayer({
                 event => {
 
                     const props =
-                        event
-                            .features[0]
+                        event.features[0]
                             .properties;
 
 
                     const displayStatus =
 
-                        props
-                            .dashboard_status ===
+                        props.dashboard_status ===
                         'No Data'
 
                             ?
@@ -1594,8 +1701,7 @@ map.addLayer({
 
                             :
 
-                            props
-                                .dashboard_status;
+                            props.dashboard_status;
 
 
                     new mapboxgl.Popup()
@@ -1628,7 +1734,7 @@ map.addLayer({
                             <br>
 
                             Status:
-                            ${displayStatus ?? 'No Data / Not Operational'}
+                            ${displayStatus}
 
                             <br>
 
@@ -1643,72 +1749,83 @@ map.addLayer({
             );
 
 
-            // ------------------------------------------
-// LIFT POPUP
-// ------------------------------------------
+            // ==================================================
+            // LIFT POPUP
+            // ==================================================
 
-map.on(
-    'click',
-    'lift-lines',
-    event => {
+            map.on(
+                'click',
+                'lift-lines',
+                event => {
 
-        const props =
-            event
-                .features[0]
-                .properties;
-
-
-        const liftName =
-            props.lift_name
-            ??
-            props.current_name
-            ??
-            'Unnamed Lift';
+                    const props =
+                        event.features[0]
+                            .properties;
 
 
-        new mapboxgl.Popup()
+                    const liftName =
+                        props.lift_name
+                        ??
+                        props.current_name
+                        ??
+                        'Unnamed Lift';
 
-            .setLngLat(
-                event.lngLat
-            )
 
-            .setHTML(`
+                    const displayStatus =
 
-                <strong>
-                    ${liftName}
-                </strong>
+                        props.dashboard_status ===
+                        'No Data'
 
-                <br>
+                            ?
 
-                Lift ID:
-                ${props.lift_id ?? 'N/A'}
+                            'No Data / Not Operational'
 
-                <br>
+                            :
 
-                Type:
-                ${props.type ?? 'Lift'}
+                            props.dashboard_status;
 
-            `)
 
-            .addTo(
-                map
+                    new mapboxgl.Popup()
+
+                        .setLngLat(
+                            event.lngLat
+                        )
+
+                        .setHTML(`
+
+                            <strong>
+                                ${liftName}
+                            </strong>
+
+                            <br>
+
+                            Status:
+                            ${displayStatus}
+
+                            <br>
+
+                            Lift ID:
+                            ${props.lift_id ?? 'N/A'}
+                        `)
+
+                        .addTo(
+                            map
+                        );
+                }
             );
-    }
-);
-            
-            // ------------------------------------------
-            // POINTER CURSOR
-            // ------------------------------------------
+
+
+            // ==================================================
+            // POINTER CURSORS
+            // ==================================================
 
             map.on(
                 'mouseenter',
                 'trail-fill',
                 () => {
 
-                    map
-                        .getCanvasContainer()
-                        .style
-                        .cursor =
+                    map.getCanvasContainer()
+                        .style.cursor =
                         'pointer';
                 }
             );
@@ -1719,49 +1836,43 @@ map.on(
                 'trail-fill',
                 () => {
 
-                    map
-                        .getCanvasContainer()
-                        .style
-                        .cursor =
+                    map.getCanvasContainer()
+                        .style.cursor =
                         '';
                 }
             );
 
+
             map.on(
-    'mouseenter',
-    'lift-lines',
-    () => {
+                'mouseenter',
+                'lift-lines',
+                () => {
 
-        map
-            .getCanvasContainer()
-            .style
-            .cursor =
-            'pointer';
-    }
-);
+                    map.getCanvasContainer()
+                        .style.cursor =
+                        'pointer';
+                }
+            );
 
 
-map.on(
-    'mouseleave',
-    'lift-lines',
-    () => {
+            map.on(
+                'mouseleave',
+                'lift-lines',
+                () => {
 
-        map
-            .getCanvasContainer()
-            .style
-            .cursor =
-            '';
-    }
-);
-            
+                    map.getCanvasContainer()
+                        .style.cursor =
+                        '';
+                }
+            );
 
-            // ------------------------------------------
-            // FIT MAP TO TRAILS
-            // ------------------------------------------
+
+            // ==================================================
+            // FIT MAP TO TERRAIN
+            // ==================================================
 
             const bounds =
-                new mapboxgl
-                    .LngLatBounds();
+                new mapboxgl.LngLatBounds();
 
 
             function extendBounds(
@@ -1773,52 +1884,43 @@ map.on(
                     'number'
                 ) {
 
-                    bounds
-                        .extend(
-                            coordinates
-                        );
+                    bounds.extend(
+                        coordinates
+                    );
 
                 } else {
 
-                    coordinates
-                        .forEach(
-                            extendBounds
-                        );
+                    coordinates.forEach(
+                        extendBounds
+                    );
                 }
             }
 
 
-            trailData.features
-                .forEach(
-                    feature => {
+            trailData.features.forEach(
+                feature => {
 
-                        extendBounds(
-                            feature
-                                .geometry
-                                .coordinates
-                        );
-                    }
-                );
+                    extendBounds(
+                        feature.geometry.coordinates
+                    );
+                }
+            );
 
 
             map.fitBounds(
                 bounds,
                 {
-                    padding:
-                        40,
-
-                    duration:
-                        0
+                    padding: 40,
+                    duration: 0
                 }
             );
 
 
-            // ------------------------------------------
+            // ==================================================
             // INITIAL SEASON
-            // ------------------------------------------
+            // ==================================================
 
-            seasonSelect
-                .value =
+            seasonSelect.value =
                 INITIAL_SEASON;
 
 
