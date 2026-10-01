@@ -653,6 +653,75 @@ map.on(
         try {
 
             // ==================================================
+// SEASON-AWARE TRAIL GEOMETRY
+// ==================================================
+
+function getSeasonStartYear(season) {
+
+    const normalizedSeason =
+        normalizeSeason(season);
+
+    const startYear =
+        Number(
+            normalizedSeason
+                .split('-')[0]
+        );
+
+    return 2000 + startYear;
+}
+
+
+function isTrailVisibleForSeason(
+    feature,
+    season
+) {
+
+    const seasonYear =
+        getSeasonStartYear(
+            season
+        );
+
+
+    const fromYear =
+        Number(
+            feature.properties.display_from_year
+            ?? 2006
+        );
+
+
+    const toYear =
+        Number(
+            feature.properties.display_to_year
+            ?? 9999
+        );
+
+
+    return (
+        seasonYear >= fromYear
+        &&
+        seasonYear <= toYear
+    );
+}
+
+
+function applyTrailSeasonVisibility(
+    trailData,
+    season
+) {
+
+    trailData.features.forEach(
+        feature => {
+
+            feature.properties.season_visible =
+                isTrailVisibleForSeason(
+                    feature,
+                    season
+                );
+        }
+    );
+}
+            
+            // ==================================================
             // LOAD STATIC DATA
             // ==================================================
 
@@ -772,13 +841,20 @@ map.on(
             // INITIAL STATUS VALUES
             // ==================================================
 
-            trailData.features.forEach(
-                feature => {
+        trailData.features.forEach(
+    feature => {
 
-                    feature.properties.dashboard_status =
-                        'No Data';
-                }
+        feature.properties.dashboard_status =
+            'No Data';
+
+
+        feature.properties.season_visible =
+            isTrailVisibleForSeason(
+                feature,
+                INITIAL_SEASON
             );
+    }
+);
 
 
             liftData.features.forEach(
@@ -881,7 +957,70 @@ map.on(
                 }
             );
 
+// ==================================================
+// GROOMED DOT PATTERN
+// ==================================================
 
+const groomedPatternSize =
+    8;
+
+
+const groomedCanvas =
+    document.createElement(
+        'canvas'
+    );
+
+
+groomedCanvas.width =
+    groomedPatternSize;
+
+groomedCanvas.height =
+    groomedPatternSize;
+
+
+const groomedContext =
+    groomedCanvas.getContext(
+        '2d'
+    );
+
+
+groomedContext.clearRect(
+    0,
+    0,
+    groomedPatternSize,
+    groomedPatternSize
+);
+
+
+groomedContext.fillStyle =
+    'rgba(255, 255, 255, 0.55)';
+
+
+groomedContext.beginPath();
+
+
+groomedContext.arc(
+    2,
+    2,
+    0.7,
+    0,
+    Math.PI * 2
+);
+
+
+groomedContext.fill();
+
+
+map.addImage(
+    'groomed-dots',
+    groomedContext.getImageData(
+        0,
+        0,
+        groomedPatternSize,
+        groomedPatternSize
+    )
+);
+            
             // ==================================================
             // TRAIL FILL
             // ==================================================
@@ -895,6 +1034,12 @@ map.on(
                 source: 'trails',
 
                 slot: 'top',
+
+                    filter: [
+                        '==',
+                        ['get', 'season_visible'],
+                        true
+                    ],
 
                 paint: {
 
@@ -930,7 +1075,46 @@ map.on(
                 }
             });
 
+// ==================================================
+// GROOMED DOT OVERLAY
+// ==================================================
 
+map.addLayer({
+
+    id: 'trail-groomed-pattern',
+
+    type: 'fill',
+
+    source: 'trails',
+
+    slot: 'top',
+
+    filter: [
+
+        'all',
+
+        [
+            '==',
+            ['get', 'season_visible'],
+            true
+        ],
+
+        [
+            '==',
+            ['get', 'dashboard_status'],
+            'Groomed'
+        ]
+    ],
+
+    paint: {
+
+        'fill-pattern':
+            'groomed-dots',
+
+        'fill-opacity':
+            0.55
+    }
+});
             // ==================================================
             // TRAIL OUTLINE
             // ==================================================
@@ -1481,6 +1665,11 @@ map.on(
 
                     seasonSelect.value =
                         season;
+
+                    applyTrailSeasonVisibility(
+                        trailData,
+                        season
+                    );
 
 
                     // ------------------------------------------
