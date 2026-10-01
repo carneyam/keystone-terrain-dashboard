@@ -200,6 +200,15 @@ body {
 
 .legend-groomed {
     background-color: #146b2e;
+
+    background-image:
+        radial-gradient(
+            rgba(255, 255, 255, 0.55) 0.7px,
+            transparent 0.7px
+        );
+
+    background-size:
+        6px 6px;
 }
 
 .legend-closed {
