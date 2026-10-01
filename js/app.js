@@ -660,14 +660,23 @@ map.on('load', async () => {
                     ? `Closing: ${formatDate(seasonInfo.resort_close_date, true)}`
                     : 'Closing: —';
 
-                let selectedIndex = preferredDate ? dateList.indexOf(preferredDate) : -1;
-
-                if (selectedIndex === -1) {
-                    const defaultDate = `${getSeasonStartYear(season) + 1}-01-15`;
-                    selectedIndex = dateList.indexOf(defaultDate);
+            // Use a specifically requested date when supplied.
+            // Otherwise, default the slider to the resort opening date.
+                let selectedIndex = preferredDate
+                    ? dateList.indexOf(preferredDate)
+                    : -1;
+                
+                if (selectedIndex === -1 && seasonInfo.resort_open_date) {
+                    selectedIndex = dateList.indexOf(
+                        seasonInfo.resort_open_date
+                    );
                 }
-
-                if (selectedIndex === -1) selectedIndex = 0;
+                
+                // Fallback to the first slider date (Oct 15)
+                // if the opening date is missing or outside the reporting window.
+                if (selectedIndex === -1) {
+                    selectedIndex = 0;
+                }
 
                 slider.value = selectedIndex;
                 applyDate(dateList[selectedIndex]);
