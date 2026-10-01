@@ -164,6 +164,57 @@ function buildReportingDateRange(season) {
     return dates;
 }
 
+function updateSliderOperatingColors(seasonInfo, dateList, slider) {
+    if (!dateList.length) return;
+
+    const firstDate = dateList[0];
+    const lastDate = dateList[dateList.length - 1];
+
+    const openDate = seasonInfo.resort_open_date;
+    const closeDate = seasonInfo.resort_close_date;
+
+    if (!openDate || !closeDate) {
+        slider.style.background = '#b8b8b8';
+        return;
+    }
+
+    // Clamp opening/closing dates to the visible slider range.
+    let openIndex = dateList.findIndex(date => date >= openDate);
+
+    let closeIndex = -1;
+    for (let i = dateList.length - 1; i >= 0; i--) {
+        if (dateList[i] <= closeDate) {
+            closeIndex = i;
+            break;
+        }
+    }
+
+    if (openDate <= firstDate) openIndex = 0;
+    if (closeDate >= lastDate) closeIndex = dateList.length - 1;
+
+    if (openIndex === -1) openIndex = 0;
+    if (closeIndex === -1) closeIndex = dateList.length - 1;
+
+    const maxIndex = dateList.length - 1;
+
+    const openPercent =
+        (openIndex / maxIndex) * 100;
+
+    const closePercent =
+        (closeIndex / maxIndex) * 100;
+
+    slider.style.background = `
+        linear-gradient(
+            to right,
+            #d9342b 0%,
+            #d9342b ${openPercent}%,
+            #39a844 ${openPercent}%,
+            #39a844 ${closePercent}%,
+            #d9342b ${closePercent}%,
+            #d9342b 100%
+        )
+    `;
+}
 // --------------------------------------------------
 // 3. CSV HELPERS
 // --------------------------------------------------
@@ -648,9 +699,17 @@ map.on('load', async () => {
                 slider.max = dateList.length - 1;
                 slider.step = 1;
 
+                updateSliderOperatingColors(
+                    seasonInfo,
+                    dateList,
+                    slider
+                );
+                
                 firstDateLabel.textContent = formatDate(dateList[0]);
                 lastDateLabel.textContent = formatDate(dateList[dateList.length - 1]);
 
+
+                
                 // Resort dates remain authoritative from seasons.csv.
                 openDateLabel.textContent = seasonInfo.resort_open_date
                     ? `Opening: ${formatDate(seasonInfo.resort_open_date, true)}`
