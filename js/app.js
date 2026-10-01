@@ -1,5 +1,7 @@
+// ==================================================
+// TERRAIN DASHBOARD - MAPBOX WEB APP
+// ==================================================
 mapboxgl.accessToken = 'pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2JmaWllaGQ2NyJ9._ubQTmLlivNH7Wp3eCSckw';
-
 // ==================================================
 // CONFIGURATION
 // ==================================================
