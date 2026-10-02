@@ -368,6 +368,23 @@ const groomedVisibleTrailFilter = [
 
 map.on('load', async () => {
     try {
+
+        // --------------------------------------------------
+        // 3D TERRAIN
+        // --------------------------------------------------
+        
+        map.addSource('mapbox-dem', {
+            type: 'raster-dem',
+            url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+            tileSize: 512,
+            maxzoom: 14
+        });
+        
+        map.setTerrain({
+            source: 'mapbox-dem',
+            exaggeration: 1.5
+        });
+        
         const [
             trailResponse,
             liftResponse,
