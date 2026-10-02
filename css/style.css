@@ -974,3 +974,230 @@ body {
 
     box-sizing: border-box;
 }
+
+/* ==================================================
+   LEFT VERTICAL DASHBOARD
+================================================== */
+
+#date-rail-panel {
+    position: absolute;
+
+    left: 18px;
+    top: 235px;
+    bottom: 175px;
+
+    width: 125px;
+
+    z-index: 4;
+
+    display: flex;
+    flex-direction: column;
+
+    padding: 8px 9px;
+
+    background: rgba(255,255,255,0.92);
+    border-radius: 7px;
+
+    box-sizing: border-box;
+}
+
+
+/* Dashboard header */
+
+.rail-dashboard-title {
+    margin-bottom: 7px;
+
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+
+/* Season + date */
+
+.rail-dashboard-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    gap: 5px;
+
+    margin-bottom: 4px;
+
+    font-size: 8px;
+}
+
+.rail-label {
+    font-weight: 600;
+}
+
+#rail-season-select {
+    max-width: 58px;
+
+    padding: 1px 2px;
+
+    font-size: 8px;
+}
+
+
+/* Conditions */
+
+.rail-conditions {
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+
+    gap: 5px 7px;
+
+    margin-top: 5px;
+}
+
+.rail-condition {
+    min-width: 0;
+}
+
+.rail-condition-label {
+    display: block;
+
+    font-size: 6.5px;
+    line-height: 1.1;
+}
+
+.rail-condition-value {
+    display: block;
+
+    margin-top: 1px;
+
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 700;
+}
+
+
+/* Divider */
+
+.date-rail-divider {
+    margin: 7px 0 6px 0;
+
+    border-top: 1px solid #ccc;
+}
+
+
+/* Rail endpoints */
+
+.date-rail-endpoint {
+    width: 100%;
+
+    text-align: center;
+
+    font-size: 7px;
+    font-weight: 600;
+
+    line-height: 1;
+}
+
+.date-rail-start {
+    margin-bottom: 5px;
+}
+
+.date-rail-end {
+    margin-top: 5px;
+}
+
+
+/* Main vertical rail */
+
+#date-rail {
+    position: relative;
+
+    width: 100%;
+    flex: 1;
+
+    min-height: 190px;
+}
+
+.date-rail-track {
+    position: absolute;
+
+    top: 0;
+    bottom: 0;
+
+    left: 60px;
+
+    width: 6px;
+
+    border-radius: 4px;
+
+    background: #9ca3af;
+}
+
+
+/* Month ticks */
+
+.date-rail-tick {
+    position: absolute;
+
+    left: 0;
+
+    width: 100%;
+    height: 12px;
+
+    transform: translateY(-50%);
+}
+
+.tick-line {
+    position: absolute;
+
+    left: 56px;
+    top: 5px;
+
+    width: 14px;
+    height: 1px;
+
+    background: #555;
+}
+
+.tick-label {
+    position: absolute;
+
+    right: 72px;
+    top: 0;
+
+    font-size: 7px;
+    font-weight: 600;
+
+    line-height: 11px;
+}
+
+
+/* Temporary month positions */
+
+.tick-nov { top: 9%; }
+.tick-dec { top: 25%; }
+.tick-jan { top: 41.5%; }
+.tick-feb { top: 58%; }
+.tick-mar { top: 73%; }
+.tick-apr { top: 89.5%; }
+
+
+/* Temporary handle */
+
+#date-rail-handle {
+    position: absolute;
+
+    left: 54px;
+    top: 50%;
+
+    width: 18px;
+    height: 18px;
+
+    transform: translateY(-50%);
+
+    border-radius: 50%;
+
+    background: white;
+    border: 2px solid #333;
+
+    box-sizing: border-box;
+}
+
