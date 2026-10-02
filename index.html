@@ -222,7 +222,49 @@
     <button id="view-3d" type="button">3D</button>
 </div>
 
-    <div id="date-rail-panel">
+   <div id="date-rail-panel">
+
+    <div class="rail-dashboard-title">
+        Keystone Terrain Dashboard
+    </div>
+
+    <div class="rail-dashboard-row">
+        <span class="rail-label">Season</span>
+        <select id="rail-season-select">
+            <option>25–26</option>
+        </select>
+    </div>
+
+    <div class="rail-dashboard-row">
+        <span class="rail-label">Date</span>
+        <span id="rail-date-label">—</span>
+    </div>
+
+    <div class="rail-conditions">
+
+        <div class="rail-condition">
+            <span class="rail-condition-label">24-Hour Snow</span>
+            <span id="rail-hn24-value" class="rail-condition-value">—</span>
+        </div>
+
+        <div class="rail-condition">
+            <span class="rail-condition-label">Season Snowfall</span>
+            <span id="rail-season-snow-value" class="rail-condition-value">—</span>
+        </div>
+
+        <div class="rail-condition">
+            <span class="rail-condition-label">Settled Base</span>
+            <span id="rail-hs-value" class="rail-condition-value">—</span>
+        </div>
+
+        <div class="rail-condition">
+            <span class="rail-condition-label">Acres Open</span>
+            <span id="rail-acres-open-value" class="rail-condition-value">—</span>
+        </div>
+
+    </div>
+
+    <div class="date-rail-divider"></div>
 
     <div class="date-rail-endpoint date-rail-start">
         Oct 15
@@ -269,6 +311,8 @@
     <div class="date-rail-endpoint date-rail-end">
         Apr 21
     </div>
+
+</div>
 
 </div>
     
