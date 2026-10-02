@@ -812,6 +812,10 @@ map.on('load', async () => {
                 ? summary.days_open
                 : '0';
 
+            const openingSeasonSnow = summary
+                ? formatSnowValue(summary.opening_season_to_date)
+                : '—';
+
             const seasonLabel = currentSeason.replace('-', '–');
 
             new mapboxgl.Popup()
@@ -829,6 +833,7 @@ map.on('load', async () => {
                         <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
                             <strong>${seasonLabel} Season</strong><br>
                             Opened: ${openingDate}<br>
+                            Season Snow at Opening: ${openingSeasonSnow}<br>
                             Closed: ${closingDate}<br>
                             Days Open: ${daysOpen}
                         </div>
