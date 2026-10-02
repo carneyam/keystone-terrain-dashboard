@@ -1241,3 +1241,29 @@ body {
 
     z-index: 0;
 }
+
+/* ==================================================
+   FINAL POSITION ADJUSTMENTS
+   ================================================== */
+
+
+/* Move vertical dashboard upward so it clears charts */
+
+#date-rail-panel {
+    bottom: 225px;
+}
+
+
+/* Move 2D / 3D controls below Mapbox navigation */
+
+#view-controls {
+    top: 145px;
+    right: 10px;
+
+    z-index: 5;
+}
+
+#view-controls button {
+    padding: 4px 7px;
+    font-size: 10px;
+}
