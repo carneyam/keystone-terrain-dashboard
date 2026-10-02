@@ -500,6 +500,9 @@ view2DButton.classList.add('active');
         // 6. DASHBOARD ELEMENTS
         // --------------------------------------------------
 
+        // Legacy horizontal dashboard elements remain in the DOM as internal controls
+        // for now, but the visible dashboard is the vertical rail panel.
+        const dashboardPanel = document.getElementById('dashboard-panel');
         const seasonSelect = document.getElementById('season-select');
         const slider = document.getElementById('date-slider');
         const dateLabel = document.getElementById('date-label');
@@ -512,14 +515,34 @@ view2DButton.classList.add('active');
         const hsValue = document.getElementById('hs-value');
         const acresOpenValue = document.getElementById('acres-open-value');
 
-        // Keep the dropdown limited to seasons whose status files are uploaded.
-        seasonSelect.innerHTML = '';
-        AVAILABLE_SEASONS.forEach(season => {
-            const option = document.createElement('option');
-            option.value = season;
-            option.textContent = season.replace('-', '–');
-            seasonSelect.appendChild(option);
-        });
+        // Visible vertical dashboard / date rail elements.
+        const railSeasonSelect = document.getElementById('rail-season-select');
+        const railDateLabel = document.getElementById('rail-date-label');
+        const railHn24Value = document.getElementById('rail-hn24-value');
+        const railSeasonSnowValue = document.getElementById('rail-season-snow-value');
+        const railHsValue = document.getElementById('rail-hs-value');
+        const railAcresOpenValue = document.getElementById('rail-acres-open-value');
+        const railSliderDate = document.getElementById('rail-slider-date');
+        const dateRail = document.getElementById('date-rail');
+        const dateRailTrack = document.querySelector('.date-rail-track');
+        const dateRailHandle = document.getElementById('date-rail-handle');
+
+        if (dashboardPanel) dashboardPanel.style.display = 'none';
+
+        function populateSeasonSelect(select) {
+            if (!select) return;
+            select.innerHTML = '';
+
+            AVAILABLE_SEASONS.forEach(season => {
+                const option = document.createElement('option');
+                option.value = season;
+                option.textContent = season.replace('-', '–');
+                select.appendChild(option);
+            });
+        }
+
+        populateSeasonSelect(seasonSelect);
+        populateSeasonSelect(railSeasonSelect);
 
         // --------------------------------------------------
         // 7. MAP SOURCES + LAYERS
@@ -643,22 +666,190 @@ view2DButton.classList.add('active');
         let dateList = [];
         let currentSeason = INITIAL_SEASON;
 
-        function updateConditions(selectedDate) {
-            const row = conditionsByKey.get(`${currentSeason}|${selectedDate}`);
+        function railPercentForIndex(index) {
+            if (dateList.length <= 1) return 0;
+            return (index / (dateList.length - 1)) * 100;
+        }
 
-            if (!row) {
-                hn24Value.textContent = '—';
-                seasonSnowValue.textContent = '—';
-                hsValue.textContent = '—';
-                acresOpenValue.textContent = '—';
+        function railIndexForDate(date) {
+            return dateList.indexOf(date);
+        }
+
+        function positionRailHandle(selectedDate) {
+            if (!dateRailHandle) return;
+
+            const index = railIndexForDate(selectedDate);
+            if (index < 0) return;
+
+            dateRailHandle.style.top = `${railPercentForIndex(index)}%`;
+        }
+
+        function positionMonthTick(selector, date) {
+            const tick = document.querySelector(selector);
+            if (!tick) return;
+
+            const index = railIndexForDate(date);
+            if (index < 0) {
+                tick.style.display = 'none';
                 return;
             }
 
-            hn24Value.textContent = formatSnowValue(
+            tick.style.display = '';
+            tick.style.top = `${railPercentForIndex(index)}%`;
+        }
+
+        function getClampedRailIndex(date, useFirstOnOrAfter = true) {
+            if (!dateList.length || !date) return -1;
+
+            if (useFirstOnOrAfter) {
+                const index = dateList.findIndex(item => item >= date);
+                return index === -1 ? dateList.length - 1 : index;
+            }
+
+            for (let i = dateList.length - 1; i >= 0; i--) {
+                if (dateList[i] <= date) return i;
+            }
+
+            return 0;
+        }
+
+        function ensureRailBoundaryLabel(id, text) {
+            if (!dateRail) return null;
+
+            let label = document.getElementById(id);
+            if (!label) {
+                label = document.createElement('div');
+                label.id = id;
+                label.textContent = text;
+                label.style.position = 'absolute';
+                label.style.left = '70px';
+                label.style.transform = 'translateY(-50%)';
+                label.style.fontSize = '6px';
+                label.style.fontWeight = '700';
+                label.style.lineHeight = '1';
+                label.style.whiteSpace = 'nowrap';
+                label.style.color = '#444';
+                label.style.pointerEvents = 'none';
+                dateRail.appendChild(label);
+            }
+
+            return label;
+        }
+
+        function configureVerticalRail(seasonInfo) {
+            if (!dateList.length || !dateRail) return;
+
+            const startYear = getSeasonStartYear(currentSeason);
+
+            positionMonthTick('.tick-nov', `${startYear}-11-01`);
+            positionMonthTick('.tick-dec', `${startYear}-12-01`);
+            positionMonthTick('.tick-jan', `${startYear + 1}-01-01`);
+            positionMonthTick('.tick-feb', `${startYear + 1}-02-01`);
+            positionMonthTick('.tick-mar', `${startYear + 1}-03-01`);
+            positionMonthTick('.tick-apr', `${startYear + 1}-04-01`);
+
+            const openIndex = getClampedRailIndex(seasonInfo.resort_open_date, true);
+            const closeIndex = getClampedRailIndex(seasonInfo.resort_close_date, false);
+
+            if (dateRailTrack && openIndex >= 0 && closeIndex >= 0) {
+                const openPercent = railPercentForIndex(openIndex);
+                const closePercent = railPercentForIndex(closeIndex);
+
+                dateRailTrack.style.background = `
+                    linear-gradient(
+                        to bottom,
+                        ${COLORS.closed} 0%,
+                        ${COLORS.closed} ${openPercent}%,
+                        ${COLORS.open} ${openPercent}%,
+                        ${COLORS.open} ${closePercent}%,
+                        ${COLORS.closed} ${closePercent}%,
+                        ${COLORS.closed} 100%
+                    )
+                `;
+
+                const openMarker = ensureRailBoundaryLabel('rail-open-marker', 'Open');
+                const closeMarker = ensureRailBoundaryLabel('rail-close-marker', 'Close');
+
+                if (openMarker) {
+                    openMarker.style.display = '';
+                    openMarker.style.top = `${openPercent}%`;
+                    openMarker.title = seasonInfo.resort_open_date
+                        ? `Resort opening: ${formatDate(seasonInfo.resort_open_date)}`
+                        : 'Resort opening';
+                }
+
+                if (closeMarker) {
+                    closeMarker.style.display = '';
+                    closeMarker.style.top = `${closePercent}%`;
+                    closeMarker.title = seasonInfo.resort_close_date
+                        ? `Resort closing: ${formatDate(seasonInfo.resort_close_date)}`
+                        : 'Resort closing';
+                }
+            } else if (dateRailTrack) {
+                dateRailTrack.style.background = COLORS.noData;
+            }
+        }
+
+        function applyRailPointer(clientY) {
+            if (!dateRail || !dateList.length) return;
+
+            const bounds = dateRail.getBoundingClientRect();
+            const rawPercent = (clientY - bounds.top) / bounds.height;
+            const clampedPercent = Math.max(0, Math.min(1, rawPercent));
+            const index = Math.round(clampedPercent * (dateList.length - 1));
+
+            slider.value = index;
+            applyDate(dateList[index]);
+        }
+
+        if (dateRail) {
+            dateRail.style.cursor = 'pointer';
+            dateRail.style.touchAction = 'none';
+
+            dateRail.addEventListener('pointerdown', event => {
+                dateRail.setPointerCapture(event.pointerId);
+                applyRailPointer(event.clientY);
+            });
+
+            dateRail.addEventListener('pointermove', event => {
+                if (!dateRail.hasPointerCapture(event.pointerId)) return;
+                applyRailPointer(event.clientY);
+            });
+
+            dateRail.addEventListener('pointerup', event => {
+                if (dateRail.hasPointerCapture(event.pointerId)) {
+                    dateRail.releasePointerCapture(event.pointerId);
+                }
+            });
+
+            dateRail.addEventListener('pointercancel', event => {
+                if (dateRail.hasPointerCapture(event.pointerId)) {
+                    dateRail.releasePointerCapture(event.pointerId);
+                }
+            });
+        }
+
+        function updateConditions(selectedDate) {
+            const row = conditionsByKey.get(`${currentSeason}|${selectedDate}`);
+
+            const setConditionText = (legacyElement, railElement, value) => {
+                if (legacyElement) legacyElement.textContent = value;
+                if (railElement) railElement.textContent = value;
+            };
+
+            if (!row) {
+                setConditionText(hn24Value, railHn24Value, '—');
+                setConditionText(seasonSnowValue, railSeasonSnowValue, '—');
+                setConditionText(hsValue, railHsValue, '—');
+                setConditionText(acresOpenValue, railAcresOpenValue, '—');
+                return;
+            }
+
+            const hn24 = formatSnowValue(
                 getFirstValue(row, ['hn24', 'hn_24', '24_hour_snow', '24hr_snow'])
             );
 
-            seasonSnowValue.textContent = formatSnowValue(
+            const seasonSnow = formatSnowValue(
                 getFirstValue(row, [
                     'hn_season_to_date',
                     'season_snowfall',
@@ -668,13 +859,18 @@ view2DButton.classList.add('active');
                 ])
             );
 
-            hsValue.textContent = formatSnowValue(
+            const settledBase = formatSnowValue(
                 getFirstValue(row, ['hs', 'settled_base', 'base', 'base_depth'])
             );
 
-            acresOpenValue.textContent = formatAcres(
+            const acresOpen = formatAcres(
                 getFirstValue(row, ['acres_open', 'reported_acres', 'acres'])
             );
+
+            setConditionText(hn24Value, railHn24Value, hn24);
+            setConditionText(seasonSnowValue, railSeasonSnowValue, seasonSnow);
+            setConditionText(hsValue, railHsValue, settledBase);
+            setConditionText(acresOpenValue, railAcresOpenValue, acresOpen);
         }
 
         // Missing daily records remain No Data. A missing record does NOT
@@ -716,7 +912,14 @@ view2DButton.classList.add('active');
             map.getSource('trails').setData(trailData);
             map.getSource('lifts').setData(liftData);
 
-            dateLabel.textContent = formatDate(selectedDate);
+            const selectedIndex = railIndexForDate(selectedDate);
+            if (selectedIndex >= 0) slider.value = selectedIndex;
+
+            if (dateLabel) dateLabel.textContent = formatDate(selectedDate);
+            if (railDateLabel) railDateLabel.textContent = formatDate(selectedDate, true);
+            if (railSliderDate) railSliderDate.textContent = formatDate(selectedDate);
+
+            positionRailHandle(selectedDate);
             updateConditions(selectedDate);
 
             console.log(
@@ -745,6 +948,7 @@ view2DButton.classList.add('active');
 
             slider.disabled = true;
             seasonSelect.disabled = true;
+            if (railSeasonSelect) railSeasonSelect.disabled = true;
 
             try {
                 const trailResponse = await fetch(trailFile);
@@ -771,6 +975,7 @@ view2DButton.classList.add('active');
 
                 currentSeason = season;
                 seasonSelect.value = season;
+                if (railSeasonSelect) railSeasonSelect.value = season;
 
                 // Hide historical/new polygons that do not belong to this season.
                 // applyDate() below refreshes the source after this property is changed.
@@ -787,6 +992,8 @@ view2DButton.classList.add('active');
                     dateList,
                     slider
                 );
+
+                configureVerticalRail(seasonInfo);
                 
                 firstDateLabel.textContent = formatDate(dateList[0]);
                 lastDateLabel.textContent = formatDate(dateList[dateList.length - 1]);
@@ -832,6 +1039,7 @@ view2DButton.classList.add('active');
             } finally {
                 slider.disabled = false;
                 seasonSelect.disabled = false;
+                if (railSeasonSelect) railSeasonSelect.disabled = false;
             }
         }
 
@@ -851,8 +1059,23 @@ view2DButton.classList.add('active');
             } catch (error) {
                 console.error('Season change error:', error);
                 seasonSelect.value = previousSeason;
+                if (railSeasonSelect) railSeasonSelect.value = previousSeason;
             }
         });
+
+        if (railSeasonSelect) {
+            railSeasonSelect.addEventListener('change', async event => {
+                const previousSeason = currentSeason;
+
+                try {
+                    await loadSeason(event.target.value);
+                } catch (error) {
+                    console.error('Season change error:', error);
+                    railSeasonSelect.value = previousSeason;
+                    seasonSelect.value = previousSeason;
+                }
+            });
+        }
 
         map.on('click', 'trail-fill', event => {
             const p = event.features[0].properties;
@@ -963,6 +1186,7 @@ view2DButton.classList.add('active');
         });
 
         seasonSelect.value = INITIAL_SEASON;
+        if (railSeasonSelect) railSeasonSelect.value = INITIAL_SEASON;
         await loadSeason(INITIAL_SEASON, INITIAL_DATE);
 
     } catch (error) {
