@@ -213,140 +213,192 @@
     </div>
 
 
+      <!-- ==================================================
+         MAP VIEW CONTROLS
+         ================================================== -->
+
+    <div id="view-controls">
+        <button id="view-2d" type="button">2D</button>
+        <button id="view-3d" type="button">3D</button>
+    </div>
+
+
+    <!-- ==================================================
+         VERTICAL DASHBOARD / DATE RAIL
+         ================================================== -->
+
+    <div id="date-rail-panel">
+
+        <div class="rail-dashboard-title">
+            Keystone Terrain Dashboard
+        </div>
+
+        <div class="rail-dashboard-row">
+            <span class="rail-label">Season</span>
+
+            <select id="rail-season-select">
+                <option>25–26</option>
+            </select>
+        </div>
+
+        <div class="rail-dashboard-row">
+            <span class="rail-label">Date</span>
+            <span id="rail-date-label">—</span>
+        </div>
+
+        <div class="rail-conditions">
+
+            <div class="rail-condition">
+                <span class="rail-condition-label">
+                    24-Hour Snow
+                </span>
+
+                <span
+                    id="rail-hn24-value"
+                    class="rail-condition-value"
+                >
+                    —
+                </span>
+            </div>
+
+            <div class="rail-condition">
+                <span class="rail-condition-label">
+                    Season Snowfall
+                </span>
+
+                <span
+                    id="rail-season-snow-value"
+                    class="rail-condition-value"
+                >
+                    —
+                </span>
+            </div>
+
+            <div class="rail-condition">
+                <span class="rail-condition-label">
+                    Settled Base
+                </span>
+
+                <span
+                    id="rail-hs-value"
+                    class="rail-condition-value"
+                >
+                    —
+                </span>
+            </div>
+
+            <div class="rail-condition">
+                <span class="rail-condition-label">
+                    Acres Open
+                </span>
+
+                <span
+                    id="rail-acres-open-value"
+                    class="rail-condition-value"
+                >
+                    —
+                </span>
+            </div>
+
+        </div>
+
+        <div class="date-rail-divider"></div>
+
+        <div id="rail-slider-date">
+            October 25, 2025
+        </div>
+
+        <div class="date-rail-endpoint date-rail-start">
+            Oct 15
+        </div>
+
+        <div id="date-rail">
+
+            <div class="date-rail-track"></div>
+
+            <div class="date-rail-tick tick-nov">
+                <span class="tick-line"></span>
+                <span class="tick-label">Nov</span>
+            </div>
+
+            <div class="date-rail-tick tick-dec">
+                <span class="tick-line"></span>
+                <span class="tick-label">Dec</span>
+            </div>
+
+            <div class="date-rail-tick tick-jan">
+                <span class="tick-line"></span>
+                <span class="tick-label">Jan</span>
+            </div>
+
+            <div class="date-rail-tick tick-feb">
+                <span class="tick-line"></span>
+                <span class="tick-label">Feb</span>
+            </div>
+
+            <div class="date-rail-tick tick-mar">
+                <span class="tick-line"></span>
+                <span class="tick-label">Mar</span>
+            </div>
+
+            <div class="date-rail-tick tick-apr">
+                <span class="tick-line"></span>
+                <span class="tick-label">Apr</span>
+            </div>
+
+            <div id="date-rail-handle"></div>
+
+        </div>
+
+        <div class="date-rail-endpoint date-rail-end">
+            Apr 21
+        </div>
+
+    </div>
+
+
+    <!-- ==================================================
+         HISTORICAL CHARTS
+         ================================================== -->
+
+    <div id="history-charts">
+
+        <div class="history-chart-card">
+            <div class="history-chart-title">
+                Season Snowfall
+            </div>
+
+            <div class="history-chart-container">
+                <canvas id="snowfall-chart"></canvas>
+            </div>
+        </div>
+
+        <div class="history-chart-card">
+            <div class="history-chart-title">
+                Terrain Open
+            </div>
+
+            <div class="history-chart-container">
+                <canvas id="acres-chart"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+
     <!-- ==================================================
          MAP
          ================================================== -->
 
-    <div id="view-controls">
-    <button id="view-2d" type="button">2D</button>
-    <button id="view-3d" type="button">3D</button>
-</div>
-
-    <div id="date-rail-panel">
-
-    <div class="rail-dashboard-title">
-        Keystone Terrain Dashboard
-    </div>
-
-    <div class="rail-dashboard-row">
-        <span class="rail-label">Season</span>
-
-        <select id="rail-season-select">
-            <option>25–26</option>
-        </select>
-    </div>
-
-    <div class="rail-dashboard-row">
-        <span class="rail-label">Date</span>
-        <span id="rail-date-label">—</span>
-    </div>
-
-    <div class="rail-conditions">
-
-        <div class="rail-condition">
-            <span class="rail-condition-label">24-Hour Snow</span>
-            <span id="rail-hn24-value" class="rail-condition-value">—</span>
-        </div>
-
-        <div class="rail-condition">
-            <span class="rail-condition-label">Season Snowfall</span>
-            <span id="rail-season-snow-value" class="rail-condition-value">—</span>
-        </div>
-
-        <div class="rail-condition">
-            <span class="rail-condition-label">Settled Base</span>
-            <span id="rail-hs-value" class="rail-condition-value">—</span>
-        </div>
-
-        <div class="rail-condition">
-            <span class="rail-condition-label">Acres Open</span>
-            <span id="rail-acres-open-value" class="rail-condition-value">—</span>
-        </div>
-
-    </div>
-
-    <div class="date-rail-divider"></div>
-
-    <div id="rail-slider-date">
-        October 25, 2025
-    </div>
-
-    <div class="date-rail-endpoint date-rail-start">
-        Oct 15
-    </div>
-
-    <div id="date-rail">
-
-        <div class="date-rail-track"></div>
-
-        <div class="date-rail-tick tick-nov">
-            <span class="tick-line"></span>
-            <span class="tick-label">Nov</span>
-        </div>
-
-        <div class="date-rail-tick tick-dec">
-            <span class="tick-line"></span>
-            <span class="tick-label">Dec</span>
-        </div>
-
-        <div class="date-rail-tick tick-jan">
-            <span class="tick-line"></span>
-            <span class="tick-label">Jan</span>
-        </div>
-
-        <div class="date-rail-tick tick-feb">
-            <span class="tick-line"></span>
-            <span class="tick-label">Feb</span>
-        </div>
-
-        <div class="date-rail-tick tick-mar">
-            <span class="tick-line"></span>
-            <span class="tick-label">Mar</span>
-        </div>
-
-        <div class="date-rail-tick tick-apr">
-            <span class="tick-line"></span>
-            <span class="tick-label">Apr</span>
-        </div>
-
-        <div id="date-rail-handle"></div>
-
-    </div>
-
-    <div class="date-rail-endpoint date-rail-end">
-        Apr 21
-    </div>
-    
     <div id="map"></div>
-    <div id="history-charts">
-
-    <div class="history-chart-card">
-        <div class="history-chart-title">
-            Season Snowfall
-        </div>
-
-        <div class="history-chart-container">
-            <canvas id="snowfall-chart"></canvas>
-        </div>
-    </div>
-
-    <div class="history-chart-card">
-        <div class="history-chart-title">
-            Terrain Open
-        </div>
-
-        <div class="history-chart-container">
-            <canvas id="acres-chart"></canvas>
-        </div>
-    </div>
-
-</div>
 
 
-    <!-- Terrain Dashboard JavaScript -->
+    <!-- ==================================================
+         JAVASCRIPT
+         ================================================== -->
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/app.js?v=5"></script>
 
 </body>
-
 </html>
