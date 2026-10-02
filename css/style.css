@@ -1201,3 +1201,17 @@ body {
     box-sizing: border-box;
 }
 
+#rail-slider-date {
+    width: 100%;
+
+    margin-bottom: 6px;
+
+    text-align: center;
+
+    font-size: 8px;
+    font-weight: 700;
+    line-height: 1.1;
+
+    color: #333;
+}
+
