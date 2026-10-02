@@ -411,3 +411,57 @@ body {
 
     cursor: pointer;
 }
+
+/* --------------------------------------------------
+   HISTORICAL COMPARISON CHARTS
+-------------------------------------------------- */
+
+#history-charts {
+    position: absolute;
+    left: 330px;
+    right: 12px;
+    bottom: 12px;
+
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+
+    z-index: 2;
+    pointer-events: none;
+}
+
+.history-chart-card {
+    background: rgba(255, 255, 255, 0.94);
+    border-radius: 7px;
+    padding: 9px 10px 7px 10px;
+
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.22);
+
+    pointer-events: auto;
+}
+
+.history-chart-title {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.history-chart-container {
+    position: relative;
+    height: 190px;
+}
+
+
+/* Stack the charts on smaller screens */
+
+@media (max-width: 900px) {
+
+    #history-charts {
+        left: 12px;
+        grid-template-columns: 1fr;
+    }
+
+    .history-chart-container {
+        height: 150px;
+    }
+}
