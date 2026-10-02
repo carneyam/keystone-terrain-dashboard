@@ -384,6 +384,53 @@ map.on('load', async () => {
             source: 'mapbox-dem',
             exaggeration: 1.5
         });
+
+        const view2DButton =
+    document.getElementById('view-2d');
+
+const view3DButton =
+    document.getElementById('view-3d');
+
+
+function setViewMode(mode) {
+
+    if (mode === '3d') {
+
+        map.easeTo({
+            pitch: 60,
+            duration: 700
+        });
+
+        view3DButton.classList.add('active');
+        view2DButton.classList.remove('active');
+
+    } else {
+
+        map.easeTo({
+            pitch: 0,
+            bearing: 0,
+            duration: 700
+        });
+
+        view2DButton.classList.add('active');
+        view3DButton.classList.remove('active');
+    }
+}
+
+
+view2DButton.addEventListener(
+    'click',
+    () => setViewMode('2d')
+);
+
+view3DButton.addEventListener(
+    'click',
+    () => setViewMode('3d')
+);
+
+
+// Initial state
+view2DButton.classList.add('active');
         
         const [
             trailResponse,
