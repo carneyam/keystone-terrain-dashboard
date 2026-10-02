@@ -802,3 +802,175 @@ body {
 
     height: 145px;
 }
+
+/* ==================================================
+   VERTICAL SEASON DATE RAIL
+   Layout only — interaction added later
+   ================================================== */
+
+#date-rail-panel {
+    position: absolute;
+
+    left: 18px;
+    top: 235px;
+    bottom: 310px;
+
+    width: 58px;
+
+    z-index: 4;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    padding: 7px 4px;
+
+    background: rgba(255, 255, 255, 0.90);
+    border-radius: 7px;
+}
+
+
+/* --------------------------------------------------
+   DATE ENDPOINTS
+-------------------------------------------------- */
+
+.date-rail-endpoint {
+    width: 100%;
+
+    text-align: center;
+
+    font-size: 8px;
+    font-weight: 600;
+    line-height: 1;
+
+    white-space: nowrap;
+}
+
+.date-rail-start {
+    margin-bottom: 6px;
+}
+
+.date-rail-end {
+    margin-top: 6px;
+}
+
+
+/* --------------------------------------------------
+   RAIL
+-------------------------------------------------- */
+
+#date-rail {
+    position: relative;
+
+    width: 100%;
+    flex: 1;
+
+    min-height: 220px;
+}
+
+.date-rail-track {
+    position: absolute;
+
+    top: 0;
+    bottom: 0;
+
+    left: 27px;
+
+    width: 6px;
+
+    border-radius: 4px;
+
+    background: #9ca3af;
+}
+
+
+/* --------------------------------------------------
+   MONTH TICKS
+-------------------------------------------------- */
+
+.date-rail-tick {
+    position: absolute;
+
+    left: 0;
+
+    width: 100%;
+    height: 12px;
+
+    transform: translateY(-50%);
+}
+
+.tick-line {
+    position: absolute;
+
+    left: 23px;
+    top: 5px;
+
+    width: 14px;
+    height: 1px;
+
+    background: #555;
+}
+
+.tick-label {
+    position: absolute;
+
+    right: 37px;
+    top: 0;
+
+    font-size: 8px;
+    font-weight: 600;
+
+    line-height: 11px;
+}
+
+
+/* Approximate positions for Oct 15–Apr 21.
+   JavaScript will calculate these exactly later. */
+
+.tick-nov {
+    top: 9%;
+}
+
+.tick-dec {
+    top: 25%;
+}
+
+.tick-jan {
+    top: 41.5%;
+}
+
+.tick-feb {
+    top: 58%;
+}
+
+.tick-mar {
+    top: 73%;
+}
+
+.tick-apr {
+    top: 89.5%;
+}
+
+
+/* --------------------------------------------------
+   TEMPORARY HANDLE
+-------------------------------------------------- */
+
+#date-rail-handle {
+    position: absolute;
+
+    left: 21px;
+    top: 50%;
+
+    width: 16px;
+    height: 16px;
+
+    transform: translateY(-50%);
+
+    border-radius: 50%;
+
+    background: white;
+    border: 2px solid #333;
+
+    box-sizing: border-box;
+}
