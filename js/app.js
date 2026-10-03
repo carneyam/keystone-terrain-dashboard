@@ -3,6 +3,7 @@
 // ==================================================
 mapboxgl.accessToken = 'pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2JmaWllaGQ2NyJ9._ubQTmLlivNH7Wp3eCSckw';
 
+
 // --------------------------------------------------
 // 1. CONFIGURATION
 // --------------------------------------------------
@@ -517,11 +518,8 @@ view2DButton.classList.add('active');
 
         // Visible vertical dashboard / date rail elements.
         const railSeasonSelect = document.getElementById('rail-season-select');
-        const railOpenDateValue =
-            document.getElementById('rail-open-date-value');
-        
-        const railCloseDateValue =
-            document.getElementById('rail-close-date-value');
+        const railOpenDateValue = document.getElementById('rail-open-date-value');
+        const railCloseDateValue = document.getElementById('rail-close-date-value');
         const railHn24Value = document.getElementById('rail-hn24-value');
         const railSeasonSnowValue = document.getElementById('rail-season-snow-value');
         const railHsValue = document.getElementById('rail-hs-value');
@@ -530,6 +528,7 @@ view2DButton.classList.add('active');
         const dateRail = document.getElementById('date-rail');
         const dateRailTrack = document.querySelector('.date-rail-track');
         const dateRailHandle = document.getElementById('date-rail-handle');
+        const snowfallChartCanvas = document.getElementById('snowfall-chart');
 
         if (dashboardPanel) dashboardPanel.style.display = 'none';
 
@@ -669,6 +668,311 @@ view2DButton.classList.add('active');
         let liftStatusData = [];
         let dateList = [];
         let currentSeason = INITIAL_SEASON;
+
+        // --------------------------------------------------
+        // 8A. HISTORICAL SEASON SNOWFALL CHART
+        // --------------------------------------------------
+
+        let snowfallChart = null;
+
+        // A leap-year template gives every season the same Oct 15-Apr 21
+        // month/day axis, including Feb 29. Non-leap seasons simply have a
+        // null value on Feb 29 rather than shifting every March/April point.
+        const chartMonthDayKeys = buildReportingDateRange('23-24')
+            .map(date => date.slice(5));
+
+        const chartMonthDayLabels = chartMonthDayKeys.map(monthDay => {
+            const [month, day] = monthDay.split('-').map(Number);
+            const templateDate = new Date(2024, month - 1, day);
+            return templateDate.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
+            });
+        });
+
+        const snowfallBySeasonAndMonthDay = new Map();
+
+        for (const season of AVAILABLE_SEASONS) {
+            snowfallBySeasonAndMonthDay.set(season, new Map());
+        }
+
+        for (const row of conditionsData) {
+            if (!row.season || !row.date) continue;
+            if (!snowfallBySeasonAndMonthDay.has(row.season)) continue;
+
+            const rawValue = getFirstValue(row, [
+                'hn_season_to_date',
+                'season_snowfall',
+                'season_to_date',
+                'season_snow',
+                'hn_season'
+            ]);
+
+            if (rawValue === '' || rawValue === null || rawValue === undefined) continue;
+
+            const numericValue = Number(String(rawValue).replace(/,/g, ''));
+            if (!Number.isFinite(numericValue)) continue;
+
+            snowfallBySeasonAndMonthDay
+                .get(row.season)
+                .set(row.date.slice(5), numericValue);
+        }
+
+        function snowfallSeriesForSeason(season) {
+            const lookup = snowfallBySeasonAndMonthDay.get(season) || new Map();
+            return chartMonthDayKeys.map(monthDay =>
+                lookup.has(monthDay) ? lookup.get(monthDay) : null
+            );
+        }
+
+        function historicalAverageSnowfallSeries() {
+            return chartMonthDayKeys.map(monthDay => {
+                const values = AVAILABLE_SEASONS
+                    .map(season => {
+                        const lookup = snowfallBySeasonAndMonthDay.get(season);
+                        return lookup && lookup.has(monthDay)
+                            ? lookup.get(monthDay)
+                            : null;
+                    })
+                    .filter(value => Number.isFinite(value));
+
+                if (!values.length) return null;
+
+                return values.reduce((sum, value) => sum + value, 0) / values.length;
+            });
+        }
+
+        function chartTickLabel(index) {
+            const monthDay = chartMonthDayKeys[index];
+
+            const labels = {
+                '10-15': 'Oct 15',
+                '11-01': 'Nov',
+                '12-01': 'Dec',
+                '01-01': 'Jan',
+                '02-01': 'Feb',
+                '03-01': 'Mar',
+                '04-01': 'Apr',
+                '04-21': 'Apr 21'
+            };
+
+            return labels[monthDay] || '';
+        }
+
+        const selectedDateGuidePlugin = {
+            id: 'selectedDateGuide',
+            afterDatasetsDraw(chart) {
+                const index = chart.$selectedDateIndex;
+                if (!Number.isInteger(index) || index < 0) return;
+
+                const { ctx, chartArea, scales } = chart;
+                const x = scales.x.getPixelForValue(index);
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.setLineDash([4, 3]);
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = 'rgba(31, 41, 55, 0.45)';
+                ctx.moveTo(x, chartArea.top);
+                ctx.lineTo(x, chartArea.bottom);
+                ctx.stroke();
+                ctx.restore();
+            }
+        };
+
+        function renderSnowfallChart() {
+            if (!snowfallChartCanvas || typeof Chart === 'undefined') return;
+
+            if (snowfallChart) {
+                snowfallChart.destroy();
+                snowfallChart = null;
+            }
+
+            const historicalDatasets = AVAILABLE_SEASONS
+                .filter(season => season !== currentSeason)
+                .map(season => ({
+                    label: season.replace('-', '–'),
+                    data: snowfallSeriesForSeason(season),
+                    borderColor: 'rgba(75, 85, 99, 0.20)',
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    tension: 0.15,
+                    spanGaps: false,
+                    isHistorical: true
+                }));
+
+            const averageDataset = {
+                label: 'Historical Average',
+                data: historicalAverageSnowfallSeries(),
+                borderColor: 'rgba(17, 24, 39, 0.85)',
+                borderWidth: 1.5,
+                borderDash: [5, 4],
+                pointRadius: 0,
+                pointHoverRadius: 0,
+                tension: 0.15,
+                spanGaps: false,
+                isAverage: true
+            };
+
+            const selectedDataset = {
+                label: `${currentSeason.replace('-', '–')} Selected Season`,
+                data: snowfallSeriesForSeason(currentSeason),
+                borderColor: '#2563eb',
+                borderWidth: 2.5,
+                pointRadius: 0,
+                pointHoverRadius: 3,
+                tension: 0.15,
+                spanGaps: false,
+                isSelected: true
+            };
+
+            const selectedDateMarkerDataset = {
+                label: 'Selected Date',
+                data: new Array(chartMonthDayKeys.length).fill(null),
+                showLine: false,
+                pointRadius: 5,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#ffffff',
+                pointBorderColor: '#111827',
+                pointBorderWidth: 2,
+                isMarker: true
+            };
+
+            snowfallChart = new Chart(snowfallChartCanvas, {
+                type: 'line',
+                data: {
+                    labels: chartMonthDayLabels,
+                    datasets: [
+                        ...historicalDatasets,
+                        averageDataset,
+                        selectedDataset,
+                        selectedDateMarkerDataset
+                    ]
+                },
+                plugins: [selectedDateGuidePlugin],
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    normalized: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    layout: {
+                        padding: {
+                            top: 2,
+                            right: 4,
+                            bottom: 0,
+                            left: 0
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                boxWidth: 16,
+                                boxHeight: 2,
+                                padding: 8,
+                                font: {
+                                    size: 8
+                                },
+                                filter(item, chartData) {
+                                    const dataset = chartData.datasets[item.datasetIndex];
+                                    return Boolean(dataset.isSelected || dataset.isAverage);
+                                }
+                            }
+                        },
+                        tooltip: {
+                            filter(context) {
+                                const dataset = context.dataset;
+                                return Boolean(dataset.isSelected || dataset.isAverage);
+                            },
+                            callbacks: {
+                                title(items) {
+                                    if (!items.length) return '';
+                                    return chartMonthDayLabels[items[0].dataIndex];
+                                },
+                                label(context) {
+                                    if (context.parsed.y === null) return '';
+                                    const value = context.parsed.y.toLocaleString('en-US', {
+                                        maximumFractionDigits: 1
+                                    });
+                                    return `${context.dataset.label}: ${value}\"`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                autoSkip: false,
+                                maxRotation: 0,
+                                minRotation: 0,
+                                font: {
+                                    size: 8
+                                },
+                                callback(value, index) {
+                                    return chartTickLabel(index);
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.08)'
+                            },
+                            ticks: {
+                                font: {
+                                    size: 8
+                                },
+                                callback(value) {
+                                    return `${value}\"`;
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Season snowfall',
+                                font: {
+                                    size: 8,
+                                    weight: '600'
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateSnowfallChartSelectedDate(selectedDate) {
+            if (!snowfallChart || !selectedDate) return;
+
+            const selectedMonthDay = selectedDate.slice(5);
+            const selectedIndex = chartMonthDayKeys.indexOf(selectedMonthDay);
+            snowfallChart.$selectedDateIndex = selectedIndex;
+
+            const markerDataset = snowfallChart.data.datasets.find(dataset => dataset.isMarker);
+            const selectedDataset = snowfallChart.data.datasets.find(dataset => dataset.isSelected);
+
+            if (markerDataset) {
+                markerDataset.data = new Array(chartMonthDayKeys.length).fill(null);
+
+                if (selectedIndex >= 0 && selectedDataset) {
+                    const value = selectedDataset.data[selectedIndex];
+                    if (Number.isFinite(value)) {
+                        markerDataset.data[selectedIndex] = value;
+                    }
+                }
+            }
+
+            snowfallChart.update('none');
+        }
 
         function railPercentForIndex(index) {
             if (dateList.length <= 1) return 0;
@@ -924,6 +1228,7 @@ view2DButton.classList.add('active');
 
             positionRailHandle(selectedDate);
             updateConditions(selectedDate);
+            updateSnowfallChartSelectedDate(selectedDate);
 
             console.log(
                 `Season ${currentSeason} | ${selectedDate} | ` +
@@ -1013,20 +1318,19 @@ view2DButton.classList.add('active');
                     : 'Closing: —';
 
                 if (railOpenDateValue) {
-                    railOpenDateValue.textContent =
-                        seasonInfo.resort_open_date
-                            ? formatDate(seasonInfo.resort_open_date, true)
-                            : '—';
+                    railOpenDateValue.textContent = seasonInfo.resort_open_date
+                        ? formatDate(seasonInfo.resort_open_date, true)
+                        : '—';
                 }
-                
+
                 if (railCloseDateValue) {
-                    railCloseDateValue.textContent =
-                        seasonInfo.resort_close_date
-                            ? formatDate(seasonInfo.resort_close_date, true)
-                            : '—';
+                    railCloseDateValue.textContent = seasonInfo.resort_close_date
+                        ? formatDate(seasonInfo.resort_close_date, true)
+                        : '—';
                 }
-                
-                
+
+                renderSnowfallChart();
+
             // Use a specifically requested date when supplied.
             // Otherwise, default the slider to the resort opening date.
                 let selectedIndex = preferredDate
