@@ -350,8 +350,7 @@ map.on('load', async () => {
             } else {
                 map.easeTo({
                     pitch: 0,
-                    bearing: 0,
-                    duration
+                    duration: 700
                 });
 
                 if (view2DButton) view2DButton.classList.add('active');
