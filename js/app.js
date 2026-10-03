@@ -443,16 +443,70 @@ const [
             });
         }
 
-        function getTrailFiveYearAverages(trailId, season) {
+        // --------------------------------------------------
+// HISTORICAL TRAIL ALIASES
+// --------------------------------------------------
+
+const frenchmanFeature = trailData.features.find(feature => {
+    const p = feature.properties;
+
+    const name = String(
+        p.trail_name ??
+        p.current_name ??
+        ''
+    ).trim().toUpperCase();
+
+    return name === 'FRENCHMAN';
+});
+
+const frenchmanTrailId =
+    frenchmanFeature?.properties?.trail_id ?? null;
+
+
+function upperFrenchmanUsesFrenchmanData(season) {
+    const startYear = getSeasonStartYear(season);
+
+    return (
+        season === '22-23' ||
+        season === '23-24' ||
+        startYear <= 2017
+    );
+}
+
+
+        function resolveTrailIdForSeason(properties, season) {
+            const name = String(
+                properties.trail_name ??
+                properties.current_name ??
+                ''
+            ).trim().toUpperCase();
+        
+            if (
+                name === 'UPPER FRENCHMAN' &&
+                upperFrenchmanUsesFrenchmanData(season) &&
+                frenchmanTrailId
+            ) {
+                return frenchmanTrailId;
+            }
+        
+            return properties.trail_id;
+        }
+        
+        function getTrailFiveYearAverages(trailProperties, season) {
             const windowSeasons = getFiveSeasonWindow(season);
 
             const openingOffsets = [];
             const openingSnowValues = [];
 
             for (const windowSeason of windowSeasons) {
-                const row = trailSeasonSummaryLookup.get(
-                    `${trailId}|${windowSeason}`
+                const historicalTrailId = resolveTrailIdForSeason(
+                    trailProperties,
+                    windowSeason
                 );
+
+const row = trailSeasonSummaryLookup.get(
+    `${historicalTrailId}|${windowSeason}`
+);
 
                 if (!row) continue;
 
@@ -1493,8 +1547,13 @@ const [
             }
 
             trailData.features.forEach(feature => {
-                const id = feature.properties.trail_id;
-                feature.properties.dashboard_status = trailLookup.get(id) ?? 'No Data';
+                const id = resolveTrailIdForSeason(
+                    feature.properties,
+                    currentSeason
+                );
+            
+                feature.properties.dashboard_status =
+                    trailLookup.get(id) ?? 'No Data';
             });
 
             liftData.features.forEach(feature => {
@@ -1645,8 +1704,16 @@ const [
                 ? 'No Data / Not Operational'
                 : p.dashboard_status;
 
-            const summaryKey = `${p.trail_id}|${currentSeason}`;
-            const summary = trailSeasonSummaryLookup.get(summaryKey);
+            const effectiveTrailId = resolveTrailIdForSeason(
+                p,
+                currentSeason
+            );
+            
+            const summaryKey =
+                `${effectiveTrailId}|${currentSeason}`;
+            
+            const summary =
+                trailSeasonSummaryLookup.get(summaryKey);
 
             const openingDate = summary
                 ? formatDate(summary.opening_date, true)
@@ -1665,7 +1732,7 @@ const [
                 : '—';
 
             const fiveYearAverages = getTrailFiveYearAverages(
-                p.trail_id,
+                p,
                 currentSeason
             );
 
