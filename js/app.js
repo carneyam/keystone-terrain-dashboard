@@ -467,6 +467,109 @@ view2DButton.classList.add('active');
             ])
         );
 
+        // Rolling five-season popup averages use the selected season plus the
+        // four immediately preceding seasons in AVAILABLE_SEASONS.
+        // Blank values are ignored within that five-season window.
+        function getFiveSeasonWindow(season) {
+            const startIndex = AVAILABLE_SEASONS.indexOf(season);
+            if (startIndex < 0) return [];
+            return AVAILABLE_SEASONS.slice(startIndex, startIndex + 5);
+        }
+
+        function openingDateToSeasonOffset(dateString, season) {
+            if (!dateString || !season) return null;
+
+            const parts = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (!parts) return null;
+
+            const openingDate = Date.UTC(
+                Number(parts[1]),
+                Number(parts[2]) - 1,
+                Number(parts[3])
+            );
+
+            const startYear = getSeasonStartYear(season);
+            const seasonStart = Date.UTC(startYear, 9, 15);
+
+            return Math.round((openingDate - seasonStart) / 86400000);
+        }
+
+        function formatAverageOpeningDate(seasonOffset, referenceSeason) {
+            if (!Number.isFinite(seasonOffset)) return '—';
+
+            const startYear = getSeasonStartYear(referenceSeason);
+            const date = new Date(
+                Date.UTC(startYear, 9, 15) +
+                Math.round(seasonOffset) * 86400000
+            );
+
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                timeZone: 'UTC'
+            });
+        }
+
+        function getTrailFiveYearAverages(trailId, season) {
+            const windowSeasons = getFiveSeasonWindow(season);
+
+            const openingOffsets = [];
+            const openingSnowValues = [];
+
+            for (const windowSeason of windowSeasons) {
+                const row = trailSeasonSummaryLookup.get(
+                    `${trailId}|${windowSeason}`
+                );
+
+                if (!row) continue;
+
+                const openingOffset = openingDateToSeasonOffset(
+                    row.opening_date,
+                    windowSeason
+                );
+
+                if (Number.isFinite(openingOffset)) {
+                    openingOffsets.push(openingOffset);
+                }
+
+                const rawOpeningSnow = row.opening_season_to_date;
+
+                if (
+                    rawOpeningSnow !== '' &&
+                    rawOpeningSnow !== null &&
+                    rawOpeningSnow !== undefined
+                ) {
+                    const numericSnow = Number(
+                        String(rawOpeningSnow).replace(/,/g, '')
+                    );
+
+                    if (Number.isFinite(numericSnow)) {
+                        openingSnowValues.push(numericSnow);
+                    }
+                }
+            }
+
+            const averageOpeningOffset = openingOffsets.length
+                ? openingOffsets.reduce((sum, value) => sum + value, 0) /
+                  openingOffsets.length
+                : null;
+
+            const averageOpeningSnow = openingSnowValues.length
+                ? openingSnowValues.reduce((sum, value) => sum + value, 0) /
+                  openingSnowValues.length
+                : null;
+
+            return {
+                openingDate: formatAverageOpeningDate(
+                    averageOpeningOffset,
+                    season
+                ),
+                openingSeasonSnow: Number.isFinite(averageOpeningSnow)
+                    ? formatSnowValue(averageOpeningSnow)
+                    : '—'
+            };
+        }
+
         if (!conditionsResponse.ok) {
             console.warn(`Could not load ${DATA_FILES.conditions}: ${conditionsResponse.status}`);
         }
@@ -782,8 +885,19 @@ view2DButton.classList.add('active');
                 ctx.setLineDash([4, 3]);
                 ctx.lineWidth = 1;
                 ctx.strokeStyle = 'rgba(31, 41, 55, 0.45)';
+
+                // Vertical guide: selected date.
                 ctx.moveTo(x, chartArea.top);
                 ctx.lineTo(x, chartArea.bottom);
+
+                // Horizontal guide: selected season value on that date.
+                const selectedValue = chart.$selectedDateValue;
+                if (Number.isFinite(selectedValue)) {
+                    const y = scales.y.getPixelForValue(selectedValue);
+                    ctx.moveTo(chartArea.left, y);
+                    ctx.lineTo(chartArea.right, y);
+                }
+
                 ctx.stroke();
                 ctx.restore();
             }
@@ -965,6 +1079,7 @@ view2DButton.classList.add('active');
             const selectedMonthDay = selectedDate.slice(5);
             const selectedIndex = chartMonthDayKeys.indexOf(selectedMonthDay);
             snowfallChart.$selectedDateIndex = selectedIndex;
+            snowfallChart.$selectedDateValue = null;
 
             const markerDataset = snowfallChart.data.datasets.find(dataset => dataset.isMarker);
             const selectedDataset = snowfallChart.data.datasets.find(dataset => dataset.isSelected);
@@ -976,6 +1091,7 @@ view2DButton.classList.add('active');
                     const value = selectedDataset.data[selectedIndex];
                     if (Number.isFinite(value)) {
                         markerDataset.data[selectedIndex] = value;
+                        snowfallChart.$selectedDateValue = value;
                     }
                 }
             }
@@ -1216,6 +1332,7 @@ view2DButton.classList.add('active');
             const selectedMonthDay = selectedDate.slice(5);
             const selectedIndex = chartMonthDayKeys.indexOf(selectedMonthDay);
             acresChart.$selectedDateIndex = selectedIndex;
+            acresChart.$selectedDateValue = null;
 
             const markerDataset = acresChart.data.datasets.find(dataset => dataset.isMarker);
             const selectedDataset = acresChart.data.datasets.find(dataset => dataset.isSelected);
@@ -1227,6 +1344,7 @@ view2DButton.classList.add('active');
                     const value = selectedDataset.data[selectedIndex];
                     if (Number.isFinite(value)) {
                         markerDataset.data[selectedIndex] = value;
+                        acresChart.$selectedDateValue = value;
                     }
                 }
             }
@@ -1687,6 +1805,11 @@ view2DButton.classList.add('active');
                 ? formatSnowValue(summary.opening_season_to_date)
                 : '—';
 
+            const fiveYearAverages = getTrailFiveYearAverages(
+                p.trail_id,
+                currentSeason
+            );
+
             const seasonLabel = currentSeason.replace('-', '–');
 
             new mapboxgl.Popup()
@@ -1707,6 +1830,12 @@ view2DButton.classList.add('active');
                             Season Snow at Opening: ${openingSeasonSnow}<br>
                             Closed: ${closingDate}<br>
                             Days Open: ${daysOpen}
+                        </div>
+
+                        <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
+                            <strong>5-Year Average</strong><br>
+                            Opening Date: ${fiveYearAverages.openingDate}<br>
+                            Season Snow at Opening: ${fiveYearAverages.openingSeasonSnow}
                         </div>
 
                         <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
