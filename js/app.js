@@ -529,6 +529,15 @@ view2DButton.classList.add('active');
         const dateRailTrack = document.querySelector('.date-rail-track');
         const dateRailHandle = document.getElementById('date-rail-handle');
         const snowfallChartCanvas = document.getElementById('snowfall-chart');
+        const acresChartCanvas = document.getElementById('acres-chart');
+
+        // Keep the visible chart heading aligned with the metric name used in the data.
+        if (acresChartCanvas) {
+            const acresCardTitle = acresChartCanvas
+                .closest('.history-chart-card')
+                ?.querySelector('.history-chart-title');
+            if (acresCardTitle) acresCardTitle.textContent = 'Reported Acreage';
+        }
 
         if (dashboardPanel) dashboardPanel.style.display = 'none';
 
@@ -974,6 +983,257 @@ view2DButton.classList.add('active');
             snowfallChart.update('none');
         }
 
+        // --------------------------------------------------
+        // 8B. HISTORICAL REPORTED ACREAGE CHART
+        // --------------------------------------------------
+
+        let acresChart = null;
+        const acreageBySeasonAndMonthDay = new Map();
+
+        for (const season of AVAILABLE_SEASONS) {
+            acreageBySeasonAndMonthDay.set(season, new Map());
+        }
+
+        for (const row of conditionsData) {
+            if (!row.season || !row.date) continue;
+            if (!acreageBySeasonAndMonthDay.has(row.season)) continue;
+
+            const rawValue = getFirstValue(row, [
+                'reported_acres',
+                'acres_open',
+                'acres'
+            ]);
+
+            if (rawValue === '' || rawValue === null || rawValue === undefined) continue;
+
+            const numericValue = Number(String(rawValue).replace(/,/g, ''));
+            if (!Number.isFinite(numericValue)) continue;
+
+            acreageBySeasonAndMonthDay
+                .get(row.season)
+                .set(row.date.slice(5), numericValue);
+        }
+
+        function acreageSeriesForSeason(season) {
+            const lookup = acreageBySeasonAndMonthDay.get(season) || new Map();
+            return chartMonthDayKeys.map(monthDay =>
+                lookup.has(monthDay) ? lookup.get(monthDay) : null
+            );
+        }
+
+        function historicalAverageAcreageSeries() {
+            return chartMonthDayKeys.map(monthDay => {
+                const values = AVAILABLE_SEASONS
+                    .map(season => {
+                        const lookup = acreageBySeasonAndMonthDay.get(season);
+                        return lookup && lookup.has(monthDay)
+                            ? lookup.get(monthDay)
+                            : null;
+                    })
+                    .filter(value => Number.isFinite(value));
+
+                if (!values.length) return null;
+
+                return values.reduce((sum, value) => sum + value, 0) / values.length;
+            });
+        }
+
+        function renderAcreageChart() {
+            if (!acresChartCanvas || typeof Chart === 'undefined') return;
+
+            if (acresChart) {
+                acresChart.destroy();
+                acresChart = null;
+            }
+
+            const historicalDatasets = AVAILABLE_SEASONS
+                .filter(season => season !== currentSeason)
+                .map(season => ({
+                    label: season.replace('-', '–'),
+                    data: acreageSeriesForSeason(season),
+                    borderColor: 'rgba(75, 85, 99, 0.20)',
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    tension: 0.15,
+                    spanGaps: false,
+                    isHistorical: true
+                }));
+
+            const averageDataset = {
+                label: 'Historical Average',
+                data: historicalAverageAcreageSeries(),
+                borderColor: 'rgba(17, 24, 39, 0.85)',
+                borderWidth: 1.5,
+                borderDash: [5, 4],
+                pointRadius: 0,
+                pointHoverRadius: 0,
+                tension: 0.15,
+                spanGaps: false,
+                isAverage: true
+            };
+
+            const selectedDataset = {
+                label: `${currentSeason.replace('-', '–')} Selected Season`,
+                data: acreageSeriesForSeason(currentSeason),
+                borderColor: '#2563eb',
+                borderWidth: 2.5,
+                pointRadius: 0,
+                pointHoverRadius: 3,
+                tension: 0.15,
+                spanGaps: false,
+                isSelected: true
+            };
+
+            const selectedDateMarkerDataset = {
+                label: 'Selected Date',
+                data: new Array(chartMonthDayKeys.length).fill(null),
+                showLine: false,
+                pointRadius: 5,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#ffffff',
+                pointBorderColor: '#111827',
+                pointBorderWidth: 2,
+                isMarker: true
+            };
+
+            acresChart = new Chart(acresChartCanvas, {
+                type: 'line',
+                data: {
+                    labels: chartMonthDayLabels,
+                    datasets: [
+                        ...historicalDatasets,
+                        averageDataset,
+                        selectedDataset,
+                        selectedDateMarkerDataset
+                    ]
+                },
+                plugins: [selectedDateGuidePlugin],
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    normalized: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    layout: {
+                        padding: {
+                            top: 2,
+                            right: 4,
+                            bottom: 0,
+                            left: 0
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                boxWidth: 16,
+                                boxHeight: 2,
+                                padding: 8,
+                                font: {
+                                    size: 8
+                                },
+                                filter(item, chartData) {
+                                    const dataset = chartData.datasets[item.datasetIndex];
+                                    return Boolean(dataset.isSelected || dataset.isAverage);
+                                }
+                            }
+                        },
+                        tooltip: {
+                            filter(context) {
+                                const dataset = context.dataset;
+                                return Boolean(dataset.isSelected || dataset.isAverage);
+                            },
+                            callbacks: {
+                                title(items) {
+                                    if (!items.length) return '';
+                                    return chartMonthDayLabels[items[0].dataIndex];
+                                },
+                                label(context) {
+                                    if (context.parsed.y === null) return '';
+                                    const value = context.parsed.y.toLocaleString('en-US', {
+                                        maximumFractionDigits: 0
+                                    });
+                                    return `${context.dataset.label}: ${value} acres`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                autoSkip: false,
+                                maxRotation: 0,
+                                minRotation: 0,
+                                font: {
+                                    size: 8
+                                },
+                                callback(value, index) {
+                                    return chartTickLabel(index);
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.08)'
+                            },
+                            ticks: {
+                                font: {
+                                    size: 8
+                                },
+                                callback(value) {
+                                    return Number(value).toLocaleString('en-US', {
+                                        maximumFractionDigits: 0
+                                    });
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Reported acreage',
+                                font: {
+                                    size: 8,
+                                    weight: '600'
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateAcreageChartSelectedDate(selectedDate) {
+            if (!acresChart || !selectedDate) return;
+
+            const selectedMonthDay = selectedDate.slice(5);
+            const selectedIndex = chartMonthDayKeys.indexOf(selectedMonthDay);
+            acresChart.$selectedDateIndex = selectedIndex;
+
+            const markerDataset = acresChart.data.datasets.find(dataset => dataset.isMarker);
+            const selectedDataset = acresChart.data.datasets.find(dataset => dataset.isSelected);
+
+            if (markerDataset) {
+                markerDataset.data = new Array(chartMonthDayKeys.length).fill(null);
+
+                if (selectedIndex >= 0 && selectedDataset) {
+                    const value = selectedDataset.data[selectedIndex];
+                    if (Number.isFinite(value)) {
+                        markerDataset.data[selectedIndex] = value;
+                    }
+                }
+            }
+
+            acresChart.update('none');
+        }
+
         function railPercentForIndex(index) {
             if (dateList.length <= 1) return 0;
             return (index / (dateList.length - 1)) * 100;
@@ -1229,6 +1489,7 @@ view2DButton.classList.add('active');
             positionRailHandle(selectedDate);
             updateConditions(selectedDate);
             updateSnowfallChartSelectedDate(selectedDate);
+            updateAcreageChartSelectedDate(selectedDate);
 
             console.log(
                 `Season ${currentSeason} | ${selectedDate} | ` +
@@ -1330,6 +1591,7 @@ view2DButton.classList.add('active');
                 }
 
                 renderSnowfallChart();
+                renderAcreageChart();
 
             // Use a specifically requested date when supplied.
             // Otherwise, default the slider to the resort opening date.
