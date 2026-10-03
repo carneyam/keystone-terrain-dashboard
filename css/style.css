@@ -1293,3 +1293,12 @@ body {
 #date-rail-handle:active {
     cursor: grabbing;
 }
+
+.history-chart-container {
+    height: 175px;
+}
+
+#date-rail-panel {
+    bottom: 255px;
+}
+
