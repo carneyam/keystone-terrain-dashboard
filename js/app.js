@@ -1752,10 +1752,12 @@ const [
         trailData.features.forEach(feature => {
             extendBounds(feature.geometry.coordinates);
         });
-
-        map.fitBounds(bounds, {
-            padding: 40,
-            duration: 0
+        
+        map.jumpTo({
+            center: [-105.951332, 39.579849],
+            zoom: 13.605,
+            pitch: 53,
+            bearing: 99.2
         });
 
         if (railSeasonSelect) railSeasonSelect.value = INITIAL_SEASON;
