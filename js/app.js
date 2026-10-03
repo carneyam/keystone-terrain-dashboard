@@ -517,7 +517,11 @@ view2DButton.classList.add('active');
 
         // Visible vertical dashboard / date rail elements.
         const railSeasonSelect = document.getElementById('rail-season-select');
-        const railDateLabel = document.getElementById('rail-date-label');
+        const railOpenDateValue =
+            document.getElementById('rail-open-date-value');
+        
+        const railCloseDateValue =
+            document.getElementById('rail-close-date-value');
         const railHn24Value = document.getElementById('rail-hn24-value');
         const railSeasonSnowValue = document.getElementById('rail-season-snow-value');
         const railHsValue = document.getElementById('rail-hs-value');
@@ -916,7 +920,6 @@ view2DButton.classList.add('active');
             if (selectedIndex >= 0) slider.value = selectedIndex;
 
             if (dateLabel) dateLabel.textContent = formatDate(selectedDate);
-            if (railDateLabel) railDateLabel.textContent = formatDate(selectedDate, true);
             if (railSliderDate) railSliderDate.textContent = formatDate(selectedDate);
 
             positionRailHandle(selectedDate);
@@ -1009,6 +1012,21 @@ view2DButton.classList.add('active');
                     ? `Closing: ${formatDate(seasonInfo.resort_close_date, true)}`
                     : 'Closing: —';
 
+                if (railOpenDateValue) {
+                    railOpenDateValue.textContent =
+                        seasonInfo.resort_open_date
+                            ? formatDate(seasonInfo.resort_open_date, true)
+                            : '—';
+                }
+                
+                if (railCloseDateValue) {
+                    railCloseDateValue.textContent =
+                        seasonInfo.resort_close_date
+                            ? formatDate(seasonInfo.resort_close_date, true)
+                            : '—';
+                }
+                
+                
             // Use a specifically requested date when supplied.
             // Otherwise, default the slider to the resort opening date.
                 let selectedIndex = preferredDate
