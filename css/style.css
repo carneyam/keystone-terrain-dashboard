@@ -1267,3 +1267,29 @@ body {
     padding: 4px 7px;
     font-size: 10px;
 }
+
+/* ==================================================
+   DATE RAIL INTERACTION
+   ================================================== */
+
+#date-rail-panel,
+#date-rail,
+.date-rail-tick,
+.date-rail-endpoint,
+#rail-slider-date {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+#date-rail {
+    cursor: ns-resize;
+    touch-action: none;
+}
+
+#date-rail-handle {
+    cursor: grab;
+}
+
+#date-rail-handle:active {
+    cursor: grabbing;
+}
