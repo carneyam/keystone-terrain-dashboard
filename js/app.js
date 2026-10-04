@@ -3,13 +3,20 @@
 // ==================================================
 mapboxgl.accessToken = 'pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2JmaWllaGQ2NyJ9._ubQTmLlivNH7Wp3eCSckw';
 
-
 // --------------------------------------------------
 // 1. CONFIGURATION
 // --------------------------------------------------
 
 const INITIAL_SEASON = '25-26';
 const INITIAL_DATE = '2025-10-25';
+
+// Preferred dashboard camera captured from the final working layout.
+const DEFAULT_CAMERA = {
+    center: [-105.951332, 39.579849],
+    zoom: 13.605,
+    pitch: 53,
+    bearing: 99.2
+};
 
 // Lift daily-status records begin with the 2016-17 season.
 // Earlier seasons will show all lifts in dark gray.
@@ -279,8 +286,10 @@ function formatAcres(value) {
 const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/standard-satellite',
-    center: [-105.95, 39.60],
-    zoom: 12
+    center: DEFAULT_CAMERA.center,
+    zoom: DEFAULT_CAMERA.zoom,
+    pitch: DEFAULT_CAMERA.pitch,
+    bearing: DEFAULT_CAMERA.bearing
 });
 
 map.addControl(new mapboxgl.NavigationControl(), 'top-right');
@@ -300,6 +309,18 @@ function updateTrailSeasonVisibility(trailData, season) {
     });
 }
 
+function updateLiftSeasonVisibility(liftData, season) {
+    const year = getSeasonStartYear(season);
+
+    liftData.features.forEach(feature => {
+        const p = feature.properties;
+        const fromYear = Number(p.display_from_year ?? 2006);
+        const toYear = Number(p.display_to_year ?? 9999);
+
+        p.season_visible = year >= fromYear && year <= toYear;
+    });
+}
+
 const visibleTrailFilter = [
     '==',
     ['get', 'season_visible'],
@@ -310,6 +331,12 @@ const groomedVisibleTrailFilter = [
     'all',
     ['==', ['get', 'season_visible'], true],
     ['==', ['get', 'dashboard_status'], 'Groomed']
+];
+
+const visibleLiftFilter = [
+    '==',
+    ['get', 'season_visible'],
+    true
 ];
 
 // --------------------------------------------------
@@ -341,16 +368,17 @@ map.on('load', async () => {
         function setViewMode(mode, duration = 700) {
             if (mode === '3d') {
                 map.easeTo({
-                    pitch: 60,
+                    pitch: DEFAULT_CAMERA.pitch,
                     duration
                 });
 
                 if (view3DButton) view3DButton.classList.add('active');
                 if (view2DButton) view2DButton.classList.remove('active');
             } else {
+                // Flatten the current view without changing its center, zoom, or bearing.
                 map.easeTo({
                     pitch: 0,
-                    duration: 700
+                    duration
                 });
 
                 if (view2DButton) view2DButton.classList.add('active');
@@ -400,6 +428,156 @@ const [
             ])
         );
 
+        // --------------------------------------------------
+        // HISTORICAL FEATURE RELATIONSHIPS
+        // --------------------------------------------------
+        // Some present-day polygons represent terrain that was historically
+        // reported under another trail name. Two carpet polygons never had
+        // independent trail status and instead follow their matching lift.
+
+        function normalizeEntityName(value) {
+            return String(value ?? '')
+                .trim()
+                .replace(/[’‘]/g, "'")
+                .replace(/\s+/g, ' ')
+                .toUpperCase();
+        }
+
+        function getTrailFeatureName(properties) {
+            return properties.trail_name ??
+                properties.current_name ??
+                properties.name ??
+                '';
+        }
+
+        function getLiftFeatureName(properties) {
+            return properties.lift_name ??
+                properties.current_name ??
+                properties.name ??
+                '';
+        }
+
+        const trailIdByName = new Map();
+        trailData.features.forEach(feature => {
+            const name = normalizeEntityName(
+                getTrailFeatureName(feature.properties)
+            );
+            if (name && feature.properties.trail_id) {
+                trailIdByName.set(name, feature.properties.trail_id);
+            }
+        });
+
+        const liftIdByName = new Map();
+        liftData.features.forEach(feature => {
+            const name = normalizeEntityName(
+                getLiftFeatureName(feature.properties)
+            );
+            if (name && feature.properties.lift_id) {
+                liftIdByName.set(name, feature.properties.lift_id);
+            }
+        });
+
+        const HISTORICAL_TRAIL_ALIAS_RULES = [
+            {
+                targetName: 'UPPER FRENCHMAN',
+                sourceName: 'FRENCHMAN',
+                applies: season => {
+                    const startYear = getSeasonStartYear(season);
+                    return startYear <= 2017 ||
+                        season === '22-23' ||
+                        season === '23-24';
+                }
+            },
+            {
+                targetName: 'THE EDGE',
+                sourceName: 'RIVER RUN',
+                applies: season => getSeasonStartYear(season) < 2016
+            },
+            {
+                targetName: 'LOWER PROSPECTOR',
+                sourceName: 'PROSPECTOR',
+                applies: season => getSeasonStartYear(season) < 2023
+            }
+        ];
+
+        const LIFT_STATUS_TRAIL_NAMES = new Set([
+            'MID STATION CARPET',
+            'CADILLAC CARPET'
+        ]);
+
+        function getHistoricalTrailAliasName(displayName, season) {
+            const name = normalizeEntityName(displayName);
+
+            const rule = HISTORICAL_TRAIL_ALIAS_RULES.find(item =>
+                item.targetName === name && item.applies(season)
+            );
+
+            return rule?.sourceName ?? null;
+        }
+
+        // Helpful console warnings if a future GeoJSON export changes one of
+        // the names used by the historical relationship rules.
+        for (const rule of HISTORICAL_TRAIL_ALIAS_RULES) {
+            if (!trailIdByName.has(rule.sourceName)) {
+                console.warn(
+                    `Historical trail source not found in trails.geojson: ${rule.sourceName}`
+                );
+            }
+        }
+
+        for (const liftName of LIFT_STATUS_TRAIL_NAMES) {
+            if (!liftIdByName.has(liftName)) {
+                console.warn(
+                    `Lift-status source not found in lifts.geojson: ${liftName}`
+                );
+            }
+        }
+
+        function resolveTrailDataSource(properties, season) {
+            const displayName = normalizeEntityName(
+                getTrailFeatureName(properties)
+            );
+
+            // These small carpet polygons use the identically named lift's
+            // daily operating status rather than a trail-status record.
+            if (LIFT_STATUS_TRAIL_NAMES.has(displayName)) {
+                const liftId = liftIdByName.get(displayName);
+
+                if (liftId) {
+                    return {
+                        type: 'lift',
+                        id: liftId,
+                        sourceName: getTrailFeatureName(properties),
+                        borrowed: true
+                    };
+                }
+            }
+
+            const aliasName = getHistoricalTrailAliasName(displayName, season);
+
+            if (aliasName) {
+                const sourceTrailId = trailIdByName.get(aliasName);
+
+                if (sourceTrailId) {
+                    return {
+                        type: 'trail',
+                        id: sourceTrailId,
+                        sourceName: aliasName
+                            .toLowerCase()
+                            .replace(/\b\w/g, letter => letter.toUpperCase()),
+                        borrowed: true
+                    };
+                }
+            }
+
+            return {
+                type: 'trail',
+                id: properties.trail_id,
+                sourceName: getTrailFeatureName(properties),
+                borrowed: false
+            };
+        }
+
         // Rolling five-season popup averages use the selected season plus the
         // four immediately preceding seasons in AVAILABLE_SEASONS.
         // Blank values are ignored within that five-season window.
@@ -443,55 +621,6 @@ const [
             });
         }
 
-        // --------------------------------------------------
-// HISTORICAL TRAIL ALIASES
-// --------------------------------------------------
-
-const frenchmanFeature = trailData.features.find(feature => {
-    const p = feature.properties;
-
-    const name = String(
-        p.trail_name ??
-        p.current_name ??
-        ''
-    ).trim().toUpperCase();
-
-    return name === 'FRENCHMAN';
-});
-
-const frenchmanTrailId =
-    frenchmanFeature?.properties?.trail_id ?? null;
-
-
-function upperFrenchmanUsesFrenchmanData(season) {
-    const startYear = getSeasonStartYear(season);
-
-    return (
-        season === '22-23' ||
-        season === '23-24' ||
-        startYear <= 2017
-    );
-}
-
-
-        function resolveTrailIdForSeason(properties, season) {
-            const name = String(
-                properties.trail_name ??
-                properties.current_name ??
-                ''
-            ).trim().toUpperCase();
-        
-            if (
-                name === 'UPPER FRENCHMAN' &&
-                upperFrenchmanUsesFrenchmanData(season) &&
-                frenchmanTrailId
-            ) {
-                return frenchmanTrailId;
-            }
-        
-            return properties.trail_id;
-        }
-        
         function getTrailFiveYearAverages(trailProperties, season) {
             const windowSeasons = getFiveSeasonWindow(season);
 
@@ -499,14 +628,18 @@ function upperFrenchmanUsesFrenchmanData(season) {
             const openingSnowValues = [];
 
             for (const windowSeason of windowSeasons) {
-                const historicalTrailId = resolveTrailIdForSeason(
+                const source = resolveTrailDataSource(
                     trailProperties,
                     windowSeason
                 );
 
-const row = trailSeasonSummaryLookup.get(
-    `${historicalTrailId}|${windowSeason}`
-);
+                // Carpet polygons follow lift status and do not have a trail
+                // season summary from which to calculate trail averages.
+                if (source.type !== 'trail' || !source.id) continue;
+
+                const row = trailSeasonSummaryLookup.get(
+                    `${source.id}|${windowSeason}`
+                );
 
                 if (!row) continue;
 
@@ -574,8 +707,14 @@ const row = trailSeasonSummaryLookup.get(
         updateTrailSeasonVisibility(trailData, INITIAL_SEASON);
 
         liftData.features.forEach(feature => {
-            feature.properties.dashboard_status = 'No Data';
+            const p = feature.properties;
+            p.dashboard_status = 'No Data';
+            p.display_from_year = Number(p.display_from_year ?? 2006);
+            p.display_to_year = Number(p.display_to_year ?? 9999);
         });
+
+        // Lifts now use the same historical display range concept as trails.
+        updateLiftSeasonVisibility(liftData, INITIAL_SEASON);
 
         const conditionsByKey = new Map(
             conditionsData.map(row => [`${row.season}|${row.date}`, row])
@@ -668,6 +807,7 @@ const row = trailSeasonSummaryLookup.get(
                     'Closed', COLORS.closed,
                     'Racing', COLORS.racing,
                     'Not Open', COLORS.notOpen,
+                    'Not Reported', COLORS.liftNotReported,
                     COLORS.noData
                 ],
                 'fill-opacity': 0.55
@@ -704,6 +844,7 @@ const row = trailSeasonSummaryLookup.get(
             type: 'line',
             source: 'lifts',
             slot: 'top',
+            filter: visibleLiftFilter,
             layout: {
                 'line-cap': 'round',
                 'line-join': 'round'
@@ -721,6 +862,7 @@ const row = trailSeasonSummaryLookup.get(
             type: 'line',
             source: 'lifts',
             slot: 'top',
+            filter: visibleLiftFilter,
             layout: {
                 'line-cap': 'round',
                 'line-join': 'round'
@@ -1547,13 +1689,19 @@ const row = trailSeasonSummaryLookup.get(
             }
 
             trailData.features.forEach(feature => {
-                const id = resolveTrailIdForSeason(
+                const source = resolveTrailDataSource(
                     feature.properties,
                     currentSeason
                 );
-            
-                feature.properties.dashboard_status =
-                    trailLookup.get(id) ?? 'No Data';
+
+                if (source.type === 'lift') {
+                    feature.properties.dashboard_status = hasLiftStatus
+                        ? (liftLookup.get(source.id) ?? 'No Data')
+                        : 'Not Reported';
+                } else {
+                    feature.properties.dashboard_status =
+                        trailLookup.get(source.id) ?? 'No Data';
+                }
             });
 
             liftData.features.forEach(feature => {
@@ -1625,9 +1773,11 @@ const row = trailSeasonSummaryLookup.get(
                 currentSeason = season;
                 if (railSeasonSelect) railSeasonSelect.value = season;
 
-                // Hide historical/new polygons that do not belong to this season.
-                // applyDate() below refreshes the source after this property is changed.
+                // Hide trail polygons and lift alignments that do not belong
+                // to the selected historical season. applyDate() below refreshes
+                // both GeoJSON sources after these properties are changed.
                 updateTrailSeasonVisibility(trailData, season);
+                updateLiftSeasonVisibility(liftData, season);
 
                 // Date rail always covers Oct 15-Apr 21.
                 dateList = buildReportingDateRange(season);
@@ -1700,20 +1850,15 @@ const row = trailSeasonSummaryLookup.get(
         map.on('click', 'trail-fill', event => {
             const p = event.features[0].properties;
 
-            const status = p.dashboard_status === 'No Data'
-                ? 'No Data / Not Operational'
-                : p.dashboard_status;
+            let status = p.dashboard_status;
+            if (status === 'No Data') status = 'No Data / Not Operational';
+            if (status === 'Not Reported') status = 'Not historically reported';
 
-            const effectiveTrailId = resolveTrailIdForSeason(
-                p,
-                currentSeason
-            );
-            
-            const summaryKey =
-                `${effectiveTrailId}|${currentSeason}`;
-            
-            const summary =
-                trailSeasonSummaryLookup.get(summaryKey);
+            const source = resolveTrailDataSource(p, currentSeason);
+
+            const summary = source.type === 'trail' && source.id
+                ? trailSeasonSummaryLookup.get(`${source.id}|${currentSeason}`)
+                : null;
 
             const openingDate = summary
                 ? formatDate(summary.opening_date, true)
@@ -1731,12 +1876,44 @@ const row = trailSeasonSummaryLookup.get(
                 ? formatSnowValue(summary.opening_season_to_date)
                 : '—';
 
-            const fiveYearAverages = getTrailFiveYearAverages(
-                p,
-                currentSeason
-            );
+            const fiveYearAverages = source.type === 'trail'
+                ? getTrailFiveYearAverages(p, currentSeason)
+                : null;
 
             const seasonLabel = currentSeason.replace('-', '–');
+
+            const historicalSourceNote = source.borrowed
+                ? source.type === 'lift'
+                    ? `<div style="margin-top: 4px; font-size: 11px; color: #555;">Status follows ${source.sourceName} lift reporting.</div>`
+                    : `<div style="margin-top: 4px; font-size: 11px; color: #555;">Historical reporting source: ${source.sourceName}</div>`
+                : '';
+
+            const seasonStatsHtml = source.type === 'trail'
+                ? `
+                    <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
+                        <strong>${seasonLabel} Season</strong><br>
+                        Opened: ${openingDate}<br>
+                        Season Snow at Opening: ${openingSeasonSnow}<br>
+                        Closed: ${closingDate}<br>
+                        Days Open: ${daysOpen}
+                    </div>
+                `
+                : `
+                    <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
+                        <strong>${seasonLabel} Season</strong><br>
+                        Trail opening statistics are not independently reported for this area.
+                    </div>
+                `;
+
+            const fiveYearHtml = fiveYearAverages
+                ? `
+                    <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
+                        <strong>5-Year Average</strong><br>
+                        Opening Date: ${fiveYearAverages.openingDate}<br>
+                        Season Snow at Opening: ${fiveYearAverages.openingSeasonSnow}
+                    </div>
+                `
+                : '';
 
             new mapboxgl.Popup()
                 .setLngLat(event.lngLat)
@@ -1750,19 +1927,9 @@ const row = trailSeasonSummaryLookup.get(
                             <strong>Status:</strong> ${status}
                         </div>
 
-                        <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
-                            <strong>${seasonLabel} Season</strong><br>
-                            Opened: ${openingDate}<br>
-                            Season Snow at Opening: ${openingSeasonSnow}<br>
-                            Closed: ${closingDate}<br>
-                            Days Open: ${daysOpen}
-                        </div>
-
-                        <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
-                            <strong>5-Year Average</strong><br>
-                            Opening Date: ${fiveYearAverages.openingDate}<br>
-                            Season Snow at Opening: ${fiveYearAverages.openingSeasonSnow}
-                        </div>
+                        ${historicalSourceNote}
+                        ${seasonStatsHtml}
+                        ${fiveYearHtml}
 
                         <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
                             Zone: ${p.mountain_area ?? '—'}<br>
@@ -1805,26 +1972,9 @@ const row = trailSeasonSummaryLookup.get(
         // 10. INITIAL MAP VIEW
         // --------------------------------------------------
 
-        const bounds = new mapboxgl.LngLatBounds();
-
-        function extendBounds(coordinates) {
-            if (typeof coordinates[0] === 'number') {
-                bounds.extend(coordinates);
-            } else {
-                coordinates.forEach(extendBounds);
-            }
-        }
-
-        trailData.features.forEach(feature => {
-            extendBounds(feature.geometry.coordinates);
-        });
-        
-        map.jumpTo({
-            center: [-105.951332, 39.579849],
-            zoom: 13.605,
-            pitch: 53,
-            bearing: 99.2
-        });
+        // Use the preferred dashboard camera rather than fitting every
+        // historical polygon. This keeps the page-load composition stable.
+        map.jumpTo(DEFAULT_CAMERA);
 
         if (railSeasonSelect) railSeasonSelect.value = INITIAL_SEASON;
         await loadSeason(INITIAL_SEASON, INITIAL_DATE);
