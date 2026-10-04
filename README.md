@@ -548,52 +548,6 @@ Increment the number when deploying a new `app.js` version.
 
 ---
 
-## Version Archiving
-
-Stable checkpoints should be preserved using GitHub Releases and tags.
-
-Example:
-
-```text
-v0.1.0
-```
-
-Suggested process:
-
-1. Confirm the live GitHub Pages deployment is working.
-2. Open the repository's **Releases** page.
-3. Choose **Draft a new release**.
-4. Create a new tag such as `v0.1.0`.
-5. Target the current `main` branch commit.
-6. Add release notes.
-7. Publish the release.
-
-This preserves a permanent reference to a known-good version while development continues on `main`.
-
----
-
-## Quality Assurance
-
-Before creating a release, recommended checks include:
-
-- Verify several recent and early seasons
-- Confirm historical geometry transitions
-- Confirm lift visibility changes
-- Confirm pre-2016–17 lift behavior
-- Test Upper Frenchman historical alias seasons
-- Test The Edge before 2016–17
-- Test Lower Prospector before 2023–24
-- Test Mid Station Carpet lift-following behavior
-- Test Cadillac Carpet lift-following behavior
-- Verify selected-season popup statistics
-- Compare several five-year averages against the source workbook
-- Confirm snowfall and acreage chart synchronization
-- Confirm missing data remains No Data rather than Closed
-- Check 2D and 3D views
-- Check page-load framing
-
----
-
 ## Current Limitations
 
 The dashboard is a historical visualization project and has several intentional limitations:
