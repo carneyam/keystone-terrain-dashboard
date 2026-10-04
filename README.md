@@ -2,7 +2,7 @@
 
 An interactive historical terrain dashboard for Keystone Resort built with **Mapbox GL JS**, **Chart.js**, GeoJSON, and CSV data.
 
-The dashboard combines historical trail and lift status records, resort operating dates, daily snow conditions, terrain geometry, and seasonal summary statistics into a single web map. Users can select a ski season, move through the season day by day, inspect trail and lift status, and compare the selected season with historical snowfall and reported acreage.
+The dashboard combines publicly reported historical trail and lift status records, resort operating dates, daily snow conditions, terrain geometry, and seasonal summary statistics into a single web map. Users can select a ski season, move through the season day by day, inspect trail and lift status, and compare the selected season with historical snowfall and reported acreage.
 
 ## Live Site
 
