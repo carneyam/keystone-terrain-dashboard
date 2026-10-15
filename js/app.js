@@ -1691,7 +1691,7 @@ const [
         // DATE STEP BUTTONS
         // --------------------------------------------------
         // A quick press moves one day. Holding a button continues moving
-        // one day every 250 ms. Pointer capture keeps the hold behavior
+        // one day every 150 ms. Pointer capture keeps the hold behavior
         // stable even if the pointer drifts slightly off the button.
 
         let dateStepHoldTimeout = null;
@@ -1746,8 +1746,8 @@ const [
                     }
 
                     moveSelectedDate(dayOffset);
-                }, 250);
-            }, 250);
+                }, 150);
+            }, 150);
         }
 
         function configureDateStepButton(button, dayOffset) {
