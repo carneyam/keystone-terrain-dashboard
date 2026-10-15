@@ -17,7 +17,9 @@
         rel="stylesheet"
     >
 
-    <script src="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.js"></script>
+    <script
+        src="https://api.mapbox.com/mapbox-gl-js/v3.30.0/mapbox-gl.js">
+    </script>
 
     <!-- Terrain Dashboard CSS -->
     <link
@@ -77,13 +79,26 @@
     </div>
 
 
-      <!-- ==================================================
+    <!-- ==================================================
          MAP VIEW CONTROLS
          ================================================== -->
 
     <div id="view-controls">
-        <button id="view-2d" type="button">2D</button>
-        <button id="view-3d" type="button">3D</button>
+
+        <button
+            id="view-2d"
+            type="button"
+        >
+            2D
+        </button>
+
+        <button
+            id="view-3d"
+            type="button"
+        >
+            3D
+        </button>
+
     </div>
 
 
@@ -97,27 +112,64 @@
             Keystone Terrain Dashboard
         </div>
 
+
+        <!-- Season -->
+
         <div class="rail-dashboard-row">
-            <span class="rail-label">Season</span>
+
+            <span class="rail-label">
+                Season
+            </span>
 
             <select id="rail-season-select">
-                <option value="25-26">25–26</option>
+
+                <option value="25-26">
+                    25–26
+                </option>
+
             </select>
+
         </div>
 
+
+        <!-- Resort Opening Date -->
+
         <div class="rail-dashboard-row">
-            <span class="rail-label">Opening Date</span>
-            <span id="rail-open-date-value">—</span>
+
+            <span class="rail-label">
+                Opening Date
+            </span>
+
+            <span id="rail-open-date-value">
+                —
+            </span>
+
         </div>
-        
+
+
+        <!-- Resort Closing Date -->
+
         <div class="rail-dashboard-row">
-            <span class="rail-label">Closing Date</span>
-            <span id="rail-close-date-value">—</span>
+
+            <span class="rail-label">
+                Closing Date
+            </span>
+
+            <span id="rail-close-date-value">
+                —
+            </span>
+
         </div>
+
+
+        <!-- ==================================================
+             DAILY CONDITIONS
+             ================================================== -->
 
         <div class="rail-conditions">
 
             <div class="rail-condition">
+
                 <span class="rail-condition-label">
                     24-Hour Snow
                 </span>
@@ -128,9 +180,12 @@
                 >
                     —
                 </span>
+
             </div>
 
+
             <div class="rail-condition">
+
                 <span class="rail-condition-label">
                     Season Snowfall
                 </span>
@@ -141,9 +196,12 @@
                 >
                     —
                 </span>
+
             </div>
 
+
             <div class="rail-condition">
+
                 <span class="rail-condition-label">
                     Settled Base
                 </span>
@@ -154,9 +212,12 @@
                 >
                     —
                 </span>
+
             </div>
 
+
             <div class="rail-condition">
+
                 <span class="rail-condition-label">
                     Acres Open
                 </span>
@@ -167,76 +228,160 @@
                 >
                     —
                 </span>
+
             </div>
 
         </div>
 
+
         <div class="date-rail-divider"></div>
+
+
+        <!-- ==================================================
+             SELECTED DATE
+             ================================================== -->
 
         <div id="rail-slider-date">
             October 25, 2025
         </div>
 
+
+        <!-- Slider Start -->
+
         <div class="date-rail-endpoint date-rail-start">
             Oct 15
         </div>
+
+
+        <!-- ==================================================
+             VERTICAL DATE RAIL
+             ================================================== -->
 
         <div id="date-rail">
 
             <div class="date-rail-track"></div>
 
+
+            <!-- November -->
+
             <div class="date-rail-tick tick-nov">
+
                 <span class="tick-line"></span>
-                <span class="tick-label">Nov</span>
+
+                <span class="tick-label">
+                    Nov
+                </span>
+
             </div>
+
+
+            <!-- December -->
 
             <div class="date-rail-tick tick-dec">
+
                 <span class="tick-line"></span>
-                <span class="tick-label">Dec</span>
+
+                <span class="tick-label">
+                    Dec
+                </span>
+
             </div>
+
+
+            <!-- January -->
 
             <div class="date-rail-tick tick-jan">
+
                 <span class="tick-line"></span>
-                <span class="tick-label">Jan</span>
+
+                <span class="tick-label">
+                    Jan
+                </span>
+
             </div>
+
+
+            <!-- February -->
 
             <div class="date-rail-tick tick-feb">
+
                 <span class="tick-line"></span>
-                <span class="tick-label">Feb</span>
+
+                <span class="tick-label">
+                    Feb
+                </span>
+
             </div>
+
+
+            <!-- March -->
 
             <div class="date-rail-tick tick-mar">
+
                 <span class="tick-line"></span>
-                <span class="tick-label">Mar</span>
+
+                <span class="tick-label">
+                    Mar
+                </span>
+
             </div>
 
+
+            <!-- April -->
+
             <div class="date-rail-tick tick-apr">
+
                 <span class="tick-line"></span>
-                <span class="tick-label">Apr</span>
+
+                <span class="tick-label">
+                    Apr
+                </span>
+
             </div>
+
+
+            <!-- Selected Date Handle -->
 
             <div id="date-rail-handle"></div>
 
-            <div id="date-step-controls" aria-label="Date step controls">
-    <button
-        id="date-step-up"
-        type="button"
-        title="Previous day"
-        aria-label="Previous day"
-    >▲</button>
-
-    <button
-        id="date-step-down"
-        type="button"
-        title="Next day"
-        aria-label="Next day"
-    >▼</button>
-</div>
-
         </div>
+
+
+        <!-- Slider End -->
 
         <div class="date-rail-endpoint date-rail-end">
             Apr 21
+        </div>
+
+
+        <!-- ==================================================
+             ONE-DAY DATE STEP CONTROLS
+             ================================================== -->
+
+        <div
+            id="date-step-controls"
+            aria-label="Date step controls"
+        >
+
+            <button
+                id="date-step-up"
+                type="button"
+                title="Previous day"
+                aria-label="Previous day"
+            >
+                ▲
+            </button>
+
+
+            <button
+                id="date-step-down"
+                type="button"
+                title="Next day"
+                aria-label="Next day"
+            >
+                ▼
+            </button>
+
         </div>
 
     </div>
@@ -248,24 +393,38 @@
 
     <div id="history-charts">
 
+
+        <!-- Season Snowfall -->
+
         <div class="history-chart-card">
+
             <div class="history-chart-title">
                 Season Snowfall
             </div>
 
             <div class="history-chart-container">
+
                 <canvas id="snowfall-chart"></canvas>
+
             </div>
+
         </div>
 
+
+        <!-- Reported Acreage -->
+
         <div class="history-chart-card">
+
             <div class="history-chart-title">
-                Terrain Open
+                Reported Acreage
             </div>
 
             <div class="history-chart-container">
+
                 <canvas id="acres-chart"></canvas>
+
             </div>
+
         </div>
 
     </div>
@@ -282,8 +441,13 @@
          JAVASCRIPT
          ================================================== -->
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-<script src="js/app.js?v=12"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js">
+    </script>
+
+    <script src="js/app.js?v=15"></script>
+
 
 </body>
+
 </html>
