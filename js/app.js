@@ -1167,7 +1167,7 @@ const [
                                 boxHeight: 2,
                                 padding: 8,
                                 font: {
-                                    size: 8
+                                    size: 11
                                 },
                                 filter(item, chartData) {
                                     const dataset = chartData.datasets[item.datasetIndex];
@@ -1205,7 +1205,7 @@ const [
                                 maxRotation: 0,
                                 minRotation: 0,
                                 font: {
-                                    size: 8
+                                    size: 11
                                 },
                                 callback(value, index) {
                                     return chartTickLabel(index);
@@ -1219,7 +1219,7 @@ const [
                             },
                             ticks: {
                                 font: {
-                                    size: 8
+                                    size: 11
                                 },
                                 callback(value) {
                                     return `${value}\"`;
@@ -1229,7 +1229,7 @@ const [
                                 display: true,
                                 text: 'Season snowfall',
                                 font: {
-                                    size: 8,
+                                    size: 10,
                                     weight: '600'
                                 }
                             }
@@ -1418,7 +1418,7 @@ const [
                                 boxHeight: 2,
                                 padding: 8,
                                 font: {
-                                    size: 8
+                                    size: 11
                                 },
                                 filter(item, chartData) {
                                     const dataset = chartData.datasets[item.datasetIndex];
@@ -1456,7 +1456,7 @@ const [
                                 maxRotation: 0,
                                 minRotation: 0,
                                 font: {
-                                    size: 8
+                                    size: 11
                                 },
                                 callback(value, index) {
                                     return chartTickLabel(index);
@@ -1470,7 +1470,7 @@ const [
                             },
                             ticks: {
                                 font: {
-                                    size: 8
+                                    size: 11
                                 },
                                 callback(value) {
                                     return Number(value).toLocaleString('en-US', {
@@ -1482,7 +1482,7 @@ const [
                                 display: true,
                                 text: 'Reported acreage',
                                 font: {
-                                    size: 8,
+                                    size: 10,
                                     weight: '600'
                                 }
                             }
@@ -1574,9 +1574,9 @@ const [
                 label.id = id;
                 label.textContent = text;
                 label.style.position = 'absolute';
-                label.style.left = '70px';
+                label.style.left = '94px';
                 label.style.transform = 'translateY(-50%)';
-                label.style.fontSize = '6px';
+                label.style.fontSize = '8px';
                 label.style.fontWeight = '700';
                 label.style.lineHeight = '1';
                 label.style.whiteSpace = 'nowrap';
@@ -1687,8 +1687,7 @@ const [
             applyDate(dateList[nextIndex]);
         }
 
-        // The arrow buttons sit inside the rail area, so stop pointer events
-        // from bubbling to the rail and changing the date a second time.
+        // Keep the date-step buttons independent from the draggable rail.
         for (const button of [previousDayButton, nextDayButton]) {
             if (!button) continue;
 
@@ -2004,8 +2003,8 @@ const [
 
             const historicalSourceNote = source.borrowed
                 ? source.type === 'lift'
-                    ? `<div style="margin-top: 4px; font-size: 11px; color: #555;">Status follows ${source.sourceName} lift reporting.</div>`
-                    : `<div style="margin-top: 4px; font-size: 11px; color: #555;">Historical reporting source: ${source.sourceName}</div>`
+                    ? `<div style="margin-top: 4px; font-size: 12px; color: #555;">Status follows ${source.sourceName} lift reporting.</div>`
+                    : `<div style="margin-top: 4px; font-size: 12px; color: #555;">Historical reporting source: ${source.sourceName}</div>`
                 : '';
 
             const selectedDateConditionsHtml = `
@@ -2045,8 +2044,8 @@ const [
             new mapboxgl.Popup()
                 .setLngLat(event.lngLat)
                 .setHTML(`
-                    <div style="min-width: 180px;">
-                        <strong style="font-size: 15px;">
+                    <div style="min-width: 210px;">
+                        <strong style="font-size: 16px;">
                             ${p.trail_name ?? p.current_name ?? 'Unnamed Trail'}
                         </strong>
 
