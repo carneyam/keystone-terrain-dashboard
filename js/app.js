@@ -3,6 +3,7 @@
 // ==================================================
 mapboxgl.accessToken = 'pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2JmaWllaGQ2NyJ9._ubQTmLlivNH7Wp3eCSckw';
 
+
 // --------------------------------------------------
 // 1. CONFIGURATION
 // --------------------------------------------------
@@ -742,6 +743,8 @@ const [
         const dateRail = document.getElementById('date-rail');
         const dateRailTrack = document.querySelector('.date-rail-track');
         const dateRailHandle = document.getElementById('date-rail-handle');
+        const previousDayButton = document.getElementById('date-step-up');
+        const nextDayButton = document.getElementById('date-step-down');
         const snowfallChartCanvas = document.getElementById('snowfall-chart');
         const acresChartCanvas = document.getElementById('acres-chart');
 
@@ -891,6 +894,58 @@ const [
         let liftStatusData = [];
         let dateList = [];
         let currentSeason = INITIAL_SEASON;
+        let currentDate = INITIAL_DATE;
+
+        // Rolling 7-day snowfall is the sum of HN24 for the selected date
+        // and the preceding six calendar days. If any day in the seven-day
+        // window is missing, return No Data rather than understating snowfall.
+        function getRollingSevenDaySnowfall(selectedDate) {
+            if (!selectedDate) return '—';
+
+            const endDate = new Date(`${selectedDate}T00:00:00Z`);
+            if (Number.isNaN(endDate.getTime())) return '—';
+
+            let total = 0;
+
+            for (let daysBack = 6; daysBack >= 0; daysBack--) {
+                const date = new Date(endDate);
+                date.setUTCDate(date.getUTCDate() - daysBack);
+
+                const dateKey = [
+                    date.getUTCFullYear(),
+                    String(date.getUTCMonth() + 1).padStart(2, '0'),
+                    String(date.getUTCDate()).padStart(2, '0')
+                ].join('-');
+
+                const row = conditionsByKey.get(`${currentSeason}|${dateKey}`);
+                if (!row) return '—';
+
+                const rawSnow = getFirstValue(
+                    row,
+                    ['hn24', 'hn_24', '24_hour_snow', '24hr_snow']
+                );
+
+                if (
+                    rawSnow === '' ||
+                    rawSnow === null ||
+                    rawSnow === undefined
+                ) {
+                    return '—';
+                }
+
+                const numericSnow = Number(
+                    String(rawSnow)
+                        .replace(/,/g, '')
+                        .replace(/"/g, '')
+                        .trim()
+                );
+
+                if (!Number.isFinite(numericSnow)) return '—';
+                total += numericSnow;
+            }
+
+            return formatSnowValue(total);
+        }
 
         // --------------------------------------------------
         // 8A. HISTORICAL SEASON SNOWFALL CHART
@@ -1598,6 +1653,64 @@ const [
             applyDate(dateList[index]);
         }
 
+        function updateDateStepButtons() {
+            if (!dateList.length || !currentDate) {
+                if (previousDayButton) previousDayButton.disabled = true;
+                if (nextDayButton) nextDayButton.disabled = true;
+                return;
+            }
+
+            const index = dateList.indexOf(currentDate);
+
+            if (previousDayButton) {
+                previousDayButton.disabled = index <= 0;
+            }
+
+            if (nextDayButton) {
+                nextDayButton.disabled = index < 0 || index >= dateList.length - 1;
+            }
+        }
+
+        function moveSelectedDate(dayOffset) {
+            if (!dateList.length || !currentDate) return;
+
+            const currentIndex = dateList.indexOf(currentDate);
+            if (currentIndex < 0) return;
+
+            const nextIndex = Math.max(
+                0,
+                Math.min(dateList.length - 1, currentIndex + dayOffset)
+            );
+
+            if (nextIndex === currentIndex) return;
+
+            applyDate(dateList[nextIndex]);
+        }
+
+        // The arrow buttons sit inside the rail area, so stop pointer events
+        // from bubbling to the rail and changing the date a second time.
+        for (const button of [previousDayButton, nextDayButton]) {
+            if (!button) continue;
+
+            button.addEventListener('pointerdown', event => {
+                event.stopPropagation();
+            });
+        }
+
+        if (previousDayButton) {
+            previousDayButton.addEventListener('click', event => {
+                event.stopPropagation();
+                moveSelectedDate(-1);
+            });
+        }
+
+        if (nextDayButton) {
+            nextDayButton.addEventListener('click', event => {
+                event.stopPropagation();
+                moveSelectedDate(1);
+            });
+        }
+
         if (dateRail) {
             dateRail.style.cursor = 'pointer';
             dateRail.style.touchAction = 'none';
@@ -1668,6 +1781,9 @@ const [
         // automatically mean the trail or lift was closed.
         function applyDate(selectedDate) {
             if (!selectedDate) return;
+
+            currentDate = selectedDate;
+            updateDateStepButtons();
 
             const trailLookup = new Map();
             const liftLookup = new Map();
@@ -1746,6 +1862,8 @@ const [
             const liftFile = `data/lift_status_${season}.csv`;
 
             if (railSeasonSelect) railSeasonSelect.disabled = true;
+            if (previousDayButton) previousDayButton.disabled = true;
+            if (nextDayButton) nextDayButton.disabled = true;
 
             try {
                 const trailResponse = await fetch(trailFile);
@@ -1880,6 +1998,8 @@ const [
                 ? getTrailFiveYearAverages(p, currentSeason)
                 : null;
 
+            const rollingSevenDaySnow = getRollingSevenDaySnowfall(currentDate);
+
             const seasonLabel = currentSeason.replace('-', '–');
 
             const historicalSourceNote = source.borrowed
@@ -1887,6 +2007,13 @@ const [
                     ? `<div style="margin-top: 4px; font-size: 11px; color: #555;">Status follows ${source.sourceName} lift reporting.</div>`
                     : `<div style="margin-top: 4px; font-size: 11px; color: #555;">Historical reporting source: ${source.sourceName}</div>`
                 : '';
+
+            const selectedDateConditionsHtml = `
+                <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
+                    <strong>Selected Date Conditions</strong><br>
+                    7-Day Snowfall: ${rollingSevenDaySnow}
+                </div>
+            `;
 
             const seasonStatsHtml = source.type === 'trail'
                 ? `
@@ -1928,6 +2055,7 @@ const [
                         </div>
 
                         ${historicalSourceNote}
+                        ${selectedDateConditionsHtml}
                         ${seasonStatsHtml}
                         ${fiveYearHtml}
 
