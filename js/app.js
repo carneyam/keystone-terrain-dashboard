@@ -1687,28 +1687,93 @@ const [
             applyDate(dateList[nextIndex]);
         }
 
-        // Keep the date-step buttons independent from the draggable rail.
-        for (const button of [previousDayButton, nextDayButton]) {
-            if (!button) continue;
+        // --------------------------------------------------
+        // DATE STEP BUTTONS
+        // --------------------------------------------------
+        // A quick press moves one day. Holding a button continues moving
+        // one day every 500 ms. Pointer capture keeps the hold behavior
+        // stable even if the pointer drifts slightly off the button.
+
+        let dateStepHoldTimeout = null;
+        let dateStepHoldInterval = null;
+
+        function stopDateStepHold() {
+            if (dateStepHoldTimeout !== null) {
+                clearTimeout(dateStepHoldTimeout);
+                dateStepHoldTimeout = null;
+            }
+
+            if (dateStepHoldInterval !== null) {
+                clearInterval(dateStepHoldInterval);
+                dateStepHoldInterval = null;
+            }
+        }
+
+        function startDateStepHold(button, dayOffset, event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (!button || button.disabled) return;
+
+            stopDateStepHold();
+
+            // One immediate step for a normal click / tap.
+            moveSelectedDate(dayOffset);
+
+            // Keep receiving pointerup even if the pointer moves off the button.
+            if (event.pointerId !== undefined && button.setPointerCapture) {
+                try {
+                    button.setPointerCapture(event.pointerId);
+                } catch (error) {
+                    // Pointer capture is a convenience only; ignore unsupported cases.
+                }
+            }
+
+            // After a half-second hold, take another step and then continue
+            // at one day every half second.
+            dateStepHoldTimeout = setTimeout(() => {
+                if (button.disabled) {
+                    stopDateStepHold();
+                    return;
+                }
+
+                moveSelectedDate(dayOffset);
+
+                dateStepHoldInterval = setInterval(() => {
+                    if (button.disabled) {
+                        stopDateStepHold();
+                        return;
+                    }
+
+                    moveSelectedDate(dayOffset);
+                }, 500);
+            }, 500);
+        }
+
+        function configureDateStepButton(button, dayOffset) {
+            if (!button) return;
 
             button.addEventListener('pointerdown', event => {
+                startDateStepHold(button, dayOffset, event);
+            });
+
+            for (const eventName of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+                button.addEventListener(eventName, event => {
+                    event.stopPropagation();
+                    stopDateStepHold();
+                });
+            }
+
+            // pointerdown already performs the single-day step, so suppress the
+            // synthetic click that follows pointerup to avoid a second step.
+            button.addEventListener('click', event => {
+                event.preventDefault();
                 event.stopPropagation();
             });
         }
 
-        if (previousDayButton) {
-            previousDayButton.addEventListener('click', event => {
-                event.stopPropagation();
-                moveSelectedDate(-1);
-            });
-        }
-
-        if (nextDayButton) {
-            nextDayButton.addEventListener('click', event => {
-                event.stopPropagation();
-                moveSelectedDate(1);
-            });
-        }
+        configureDateStepButton(previousDayButton, -1);
+        configureDateStepButton(nextDayButton, 1);
 
         if (dateRail) {
             dateRail.style.cursor = 'pointer';
