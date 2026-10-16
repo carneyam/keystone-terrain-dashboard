@@ -1363,3 +1363,83 @@ body {
     opacity: 0.35;
     cursor: default;
 }
+
+/* ==================================================
+   VERTICAL DASHBOARD — WIDTH / TEXT POLISH
+   ================================================== */
+
+/* Slightly wider dashboard card */
+#date-rail-panel {
+    width: 150px;
+}
+
+
+/* Larger dashboard heading */
+.rail-dashboard-title {
+    font-size: 13px;
+    line-height: 1.15;
+}
+
+
+/* Larger season / opening / closing rows */
+.rail-dashboard-row {
+    font-size: 9.5px;
+    line-height: 1.2;
+}
+
+
+/* Slightly larger season selector */
+#rail-season-select {
+    font-size: 9.5px;
+}
+
+
+/* Larger condition labels */
+.rail-condition-label {
+    font-size: 7.5px;
+    line-height: 1.15;
+}
+
+
+/* Larger condition values */
+.rail-condition-value {
+    font-size: 12px;
+}
+
+
+/* ==================================================
+   CENTER DATE RAIL IN THE WIDER PANEL
+   ================================================== */
+
+#date-rail {
+    width: 100%;
+}
+
+
+/* Center the vertical track */
+.date-rail-track {
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+
+/* Center the round date handle on the track */
+#date-rail-handle {
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+
+/* Center each month tick across the track */
+.tick-line {
+    left: calc(50% - 7px);
+}
+
+
+/* Keep month labels to the left of the centered rail */
+.tick-label {
+    left: auto;
+    right: calc(50% + 14px);
+    width: 45px;
+    text-align: right;
+}
