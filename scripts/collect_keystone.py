@@ -11,6 +11,7 @@ Development version:
 No CSV files are modified yet.
 """
 
+import csv
 import json
 import re
 import requests
@@ -30,6 +31,9 @@ LIFT_STATUS_MAP = {
     4: "Unknown",
 }
 
+TRAILS_GEOJSON = "data/trails.geojson"
+LIFTS_GEOJSON = "data/lifts.geojson"
+CROSSWALK_CSV = "data/live_name_crosswalk.csv"
 
 def get_page():
     """Download the Keystone terrain and lift status page."""
@@ -145,43 +149,178 @@ def parse_trails(feed):
 
     return trails
 
+def load_crosswalk():
+    """Load explicit live-name to dashboard-name mappings."""
+
+    crosswalk = {
+        "trail": {},
+        "lift": {},
+    }
+
+    with open(CROSSWALK_CSV, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+
+        for row in reader:
+            source_type = row["source_type"].strip()
+            source_name = row["source_name"].strip()
+            dashboard_name = row["dashboard_name"].strip()
+
+            crosswalk[source_type][source_name] = dashboard_name
+
+    return crosswalk
+
+
+def load_trail_ids():
+    """Return dashboard trail name -> trail_id."""
+
+    with open(TRAILS_GEOJSON, encoding="utf-8") as f:
+        data = json.load(f)
+
+    return {
+        feature["properties"]["trail_name"]:
+        feature["properties"]["trail_id"]
+        for feature in data["features"]
+    }
+
+
+def load_lift_ids():
+    """Return dashboard lift name -> lift_id."""
+
+    with open(LIFTS_GEOJSON, encoding="utf-8") as f:
+        data = json.load(f)
+
+    return {
+        feature["properties"]["lift_name"]:
+        feature["properties"]["lift_id"]
+        for feature in data["features"]
+    }
+
+
+def resolve_trail_ids(trails, crosswalk, trail_ids):
+    """Attach dashboard name and trail_id to live trail records."""
+
+    resolved = []
+    unmatched = []
+
+    for trail in trails:
+        source_name = trail["name"]
+
+        dashboard_name = crosswalk["trail"].get(
+            source_name,
+            source_name,
+        )
+
+        trail_id = trail_ids.get(dashboard_name)
+
+        if trail_id is None:
+            unmatched.append(source_name)
+            continue
+
+        record = trail.copy()
+        record["dashboard_name"] = dashboard_name
+        record["trail_id"] = trail_id
+
+        resolved.append(record)
+
+    return resolved, unmatched
+
+
+def resolve_lift_ids(lifts, crosswalk, lift_ids):
+    """Attach dashboard name and lift_id to live lift records."""
+
+    resolved = []
+    unmatched = []
+
+    for lift in lifts:
+        source_name = lift["name"]
+
+        dashboard_name = crosswalk["lift"].get(
+            source_name,
+            source_name,
+        )
+
+        lift_id = lift_ids.get(dashboard_name)
+
+        if lift_id is None:
+            unmatched.append(source_name)
+            continue
+
+        record = lift.copy()
+        record["dashboard_name"] = dashboard_name
+        record["lift_id"] = lift_id
+
+        resolved.append(record)
+
+    return resolved, unmatched
 
 def main():
 
     print("Downloading Keystone terrain status...")
 
     html = get_page()
-
     feed = extract_feed(html)
 
     lifts = parse_lifts(feed)
     trails = parse_trails(feed)
 
+    crosswalk = load_crosswalk()
+    trail_ids = load_trail_ids()
+    lift_ids = load_lift_ids()
+
+    resolved_trails, unmatched_trails = resolve_trail_ids(
+        trails,
+        crosswalk,
+        trail_ids,
+    )
+
+    resolved_lifts, unmatched_lifts = resolve_lift_ids(
+        lifts,
+        crosswalk,
+        lift_ids,
+    )
+
     print()
-    print(f"Lifts found: {len(lifts)}")
-    print("-" * 80)
+    print(f"Live trails found:     {len(trails)}")
+    print(f"Resolved trail IDs:    {len(resolved_trails)}")
+    print(f"Unmatched live trails: {len(unmatched_trails)}")
 
-    for lift in lifts:
-        print(
-            f"{lift['name']:<28} "
-            f"{lift['raw_status']:<10} "
-            f"{lift['status']:<2} "
-            f"{lift['open_time']} - {lift['close_time']}"
-        )
+    for name in unmatched_trails:
+        print(f"  TRAIL UNMATCHED: {name}")
 
     print()
-    print(f"Trails found: {len(trails)}")
-    print("-" * 80)
+    print(f"Live lifts found:      {len(lifts)}")
+    print(f"Resolved lift IDs:     {len(resolved_lifts)}")
+    print(f"Unmatched live lifts:  {len(unmatched_lifts)}")
 
-    for trail in trails:
-        print(
-            f"{trail['name']:<35} "
-            f"Open={trail['is_open']!s:<5} "
-            f"Groomed={trail['is_groomed']!s:<5} "
-            f"{trail['status']} "
-            f"[{trail['area']}]"
-        )
+    for name in unmatched_lifts:
+        print(f"  LIFT UNMATCHED: {name}")
 
+    print()
+    print("OPEN / SCHEDULED LIFTS")
+    print("-" * 70)
 
+    for lift in resolved_lifts:
+        if lift["status"] == "O":
+            print(
+                lift["lift_id"],
+                "|",
+                lift["dashboard_name"],
+                "|",
+                lift["raw_status"],
+            )
+
+    print()
+    print("OPEN TRAILS")
+    print("-" * 70)
+
+    for trail in resolved_trails:
+        if trail["status"] in {"O", "G"}:
+            print(
+                trail["trail_id"],
+                "|",
+                trail["dashboard_name"],
+                "|",
+                trail["status"],
+            )
 if __name__ == "__main__":
     main()
