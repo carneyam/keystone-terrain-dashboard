@@ -8,8 +8,8 @@ mapboxgl.accessToken = 'pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2Jma
 // 1. CONFIGURATION
 // --------------------------------------------------
 
-const INITIAL_SEASON = '25-26';
-const INITIAL_DATE = '2025-10-25';
+const INITIAL_SEASON = '26-27';
+const INITIAL_DATE = null;
 
 // Preferred dashboard camera captured from the final working layout.
 const DEFAULT_CAMERA = {
@@ -24,6 +24,7 @@ const DEFAULT_CAMERA = {
 const FIRST_LIFT_STATUS_SEASON_YEAR = 2016;
 
 const AVAILABLE_SEASONS = [
+    '26-27',
     '25-26',
     '24-25',
     '23-24',
@@ -1600,8 +1601,21 @@ const [
             positionMonthTick('.tick-mar', `${startYear + 1}-03-01`);
             positionMonthTick('.tick-apr', `${startYear + 1}-04-01`);
 
-            const openIndex = getClampedRailIndex(seasonInfo.resort_open_date, true);
-            const closeIndex = getClampedRailIndex(seasonInfo.resort_close_date, false);
+        const openIndex = getClampedRailIndex(
+                seasonInfo.resort_open_date,
+                true
+            );
+
+            const hasCloseDate = Boolean(
+                seasonInfo.resort_close_date
+            );
+
+            const closeIndex = hasCloseDate
+                ? getClampedRailIndex(
+                    seasonInfo.resort_close_date,
+                    false
+                )
+                : dateList.length - 1;
 
             if (dateRailTrack && openIndex >= 0 && closeIndex >= 0) {
                 const openPercent = railPercentForIndex(openIndex);
@@ -1631,11 +1645,20 @@ const [
                 }
 
                 if (closeMarker) {
-                    closeMarker.style.display = '';
-                    closeMarker.style.top = `${closePercent}%`;
-                    closeMarker.title = seasonInfo.resort_close_date
-                        ? `Resort closing: ${formatDate(seasonInfo.resort_close_date)}`
-                        : 'Resort closing';
+
+                    if (hasCloseDate) {
+
+                        closeMarker.style.display = '';
+                        closeMarker.style.top = `${closePercent}%`;
+                        closeMarker.title =
+                            `Resort closing: ${formatDate(
+                                seasonInfo.resort_close_date
+                            )}`;
+
+                    } else {
+
+                        closeMarker.style.display = 'none';
+                    }
                 }
             } else if (dateRailTrack) {
                 dateRailTrack.style.background = COLORS.noData;
@@ -1981,20 +2004,35 @@ const [
                 renderSnowfallChart();
                 renderAcreageChart();
 
-            // Use a specifically requested date when supplied.
-            // Otherwise, default the slider to the resort opening date.
+                            // Use a specifically requested date when supplied.
                 let selectedIndex = preferredDate
                     ? dateList.indexOf(preferredDate)
                     : -1;
-                
+
+                // For the current live season, default to the latest date
+                // actually present in the trail-status file.
+                if (selectedIndex === -1 && season === INITIAL_SEASON) {
+                    const availableDates = trailStatusData
+                        .map(row => normalizeDate(row.date))
+                        .filter(date => dateList.includes(date))
+                        .sort();
+
+                    if (availableDates.length) {
+                        const latestDate =
+                            availableDates[availableDates.length - 1];
+
+                        selectedIndex = dateList.indexOf(latestDate);
+                    }
+                }
+
+                // Historical seasons still default to the resort opening date.
                 if (selectedIndex === -1 && seasonInfo.resort_open_date) {
                     selectedIndex = dateList.indexOf(
                         seasonInfo.resort_open_date
                     );
                 }
-                
-                // Fallback to the first slider date (Oct 15)
-                // if the opening date is missing or outside the reporting window.
+
+                // Final fallback: first slider date.
                 if (selectedIndex === -1) {
                     selectedIndex = 0;
                 }
