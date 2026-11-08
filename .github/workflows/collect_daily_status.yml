@@ -36,5 +36,5 @@ jobs:
       - name: Install Chromium
         run: playwright install --with-deps chromium
 
-      - name: Run Keystone collector validation
-        run: python3 scripts/test_keystone_collector.py
+      - name: Test Keystone browser access
+        run: python3 scripts/test_keystone_browser.py
