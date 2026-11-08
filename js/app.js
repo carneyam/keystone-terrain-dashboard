@@ -896,6 +896,8 @@ const [
         let dateList = [];
         let currentSeason = INITIAL_SEASON;
         let currentDate = INITIAL_DATE;
+        let currentSelectedDate = null;
+        let activePopup = null;
 
         // Rolling 7-day snowfall is the sum of HN24 for the selected date
         // and the preceding six calendar days. If any day in the seven-day
@@ -1866,8 +1868,196 @@ const [
 
         // Missing daily records remain No Data. A missing record does NOT
         // automatically mean the trail or lift was closed.
+
+                function formatPopupStatus(status, isLift = false) {
+            if (status === 'No Data') {
+                return 'No Data / Not Operational';
+            }
+
+            if (isLift && status === 'Not Reported') {
+                return 'Not historically reported';
+            }
+
+            return status || 'No Data / Not Operational';
+        }
+
+
+        function renderActivePopup() {
+            if (!activePopup || !currentSelectedDate) {
+                return;
+            }
+
+            if (activePopup.type === 'trail') {
+                const feature = trailData.features.find(
+                    item =>
+                        item.properties.trail_id ===
+                        activePopup.id
+                );
+
+                if (!feature) {
+                    return;
+                }
+
+                const p = feature.properties;
+
+                const status = formatPopupStatus(
+                    p.dashboard_status
+                );
+
+                const summaryKey =
+                    `${p.trail_id}|${currentSeason}`;
+
+                const summary =
+                    trailSeasonSummaryLookup.get(
+                        summaryKey
+                    );
+
+                const openingDate = summary
+                    ? formatDate(
+                        summary.opening_date,
+                        true
+                    )
+                    : '—';
+
+                const closingDate = summary
+                    ? formatDate(
+                        summary.closing_date,
+                        true
+                    )
+                    : '—';
+
+                const daysOpen =
+                    summary &&
+                    summary.days_open !== ''
+                        ? summary.days_open
+                        : '0';
+
+                const openingSeasonSnow = summary
+                    ? formatSnowValue(
+                        summary.opening_season_to_date
+                    )
+                    : '—';
+
+                const seasonLabel =
+                    currentSeason.replace('-', '–');
+
+                activePopup.popup.setHTML(`
+                    <div style="min-width: 190px;">
+
+                        <strong style="font-size: 15px;">
+                            ${
+                                p.trail_name ??
+                                p.current_name ??
+                                'Unnamed Trail'
+                            }
+                        </strong>
+
+                        <div style="margin-top: 4px; color: #555;">
+                            ${formatDate(currentSelectedDate)}
+                        </div>
+
+                        <div style="margin-top: 6px;">
+                            <strong>Status:</strong>
+                            ${status}
+                        </div>
+
+                        <div
+                            style="
+                                margin-top: 7px;
+                                padding-top: 6px;
+                                border-top: 1px solid #ddd;
+                            "
+                        >
+                            <strong>
+                                ${seasonLabel} Season
+                            </strong><br>
+
+                            Opened: ${openingDate}<br>
+
+                            Season Snow at Opening:
+                            ${openingSeasonSnow}<br>
+
+                            Closed: ${closingDate}<br>
+
+                            Days Open: ${daysOpen}
+                        </div>
+
+                        <div
+                            style="
+                                margin-top: 7px;
+                                padding-top: 6px;
+                                border-top: 1px solid #ddd;
+                            "
+                        >
+                            Zone:
+                            ${p.mountain_area ?? '—'}<br>
+
+                            Acres:
+                            ${p.acres_25_26 ?? '—'}
+                        </div>
+
+                    </div>
+                `);
+            }
+
+
+            if (activePopup.type === 'lift') {
+                const feature = liftData.features.find(
+                    item =>
+                        item.properties.lift_id ===
+                        activePopup.id
+                );
+
+                if (!feature) {
+                    return;
+                }
+
+                const p = feature.properties;
+
+                const name =
+                    p.lift_name ??
+                    p.current_name ??
+                    'Unnamed Lift';
+
+                const status = formatPopupStatus(
+                    p.dashboard_status,
+                    true
+                );
+
+                activePopup.popup.setHTML(`
+                    <div style="min-width: 170px;">
+
+                        <strong style="font-size: 15px;">
+                            ${name}
+                        </strong>
+
+                        <div style="margin-top: 4px; color: #555;">
+                            ${formatDate(currentSelectedDate)}
+                        </div>
+
+                        <div style="margin-top: 6px;">
+                            <strong>Status:</strong>
+                            ${status}
+                        </div>
+
+                    </div>
+                `);
+            }
+        }
+
+
+        function closeActivePopup() {
+            if (activePopup) {
+                const popup = activePopup.popup;
+                activePopup = null;
+                popup.remove();
+            }
+        }
+
         function applyDate(selectedDate) {
             if (!selectedDate) return;
+
+            currentSelectedDate = selectedDate;
 
             currentDate = selectedDate;
             updateDateStepButtons();
@@ -1921,6 +2111,7 @@ const [
 
             positionRailHandle(selectedDate);
             updateConditions(selectedDate);
+            renderActivePopup();
             updateSnowfallChartSelectedDate(selectedDate);
             updateAcreageChartSelectedDate(selectedDate);
 
@@ -2054,138 +2245,75 @@ const [
         // 9. CONTROLS + POPUPS
         // --------------------------------------------------
 
-        if (railSeasonSelect) {
-            railSeasonSelect.addEventListener('change', async event => {
-                const previousSeason = currentSeason;
+                if (railSeasonSelect) {
+                    railSeasonSelect.addEventListener('change', async event => {
+                        const previousSeason = currentSeason;
 
-                try {
-                    await loadSeason(event.target.value);
-                } catch (error) {
-                    console.error('Season change error:', error);
-                    railSeasonSelect.value = previousSeason;
+                        try {
+                            await loadSeason(event.target.value);
+                        } catch (error) {
+                            console.error('Season change error:', error);
+                            railSeasonSelect.value = previousSeason;
+                        }
+                    });
+                }
+
+            map.on('click', 'lift-lines', event => {
+            closeActivePopup();
+
+            const p =
+                event.features[0].properties;
+
+            const popup =
+                new mapboxgl.Popup()
+                    .setLngLat(event.lngLat)
+                    .addTo(map);
+
+            activePopup = {
+                type: 'lift',
+                id: p.lift_id,
+                popup: popup
+            };
+
+            popup.on('close', () => {
+                if (
+                    activePopup &&
+                    activePopup.popup === popup
+                ) {
+                    activePopup = null;
                 }
             });
-        }
 
-        map.on('click', 'trail-fill', event => {
-            const p = event.features[0].properties;
-
-            let status = p.dashboard_status;
-            if (status === 'No Data') status = 'No Data / Not Operational';
-            if (status === 'Not Reported') status = 'Not historically reported';
-
-            const source = resolveTrailDataSource(p, currentSeason);
-
-            const summary = source.type === 'trail' && source.id
-                ? trailSeasonSummaryLookup.get(`${source.id}|${currentSeason}`)
-                : null;
-
-            const openingDate = summary
-                ? formatDate(summary.opening_date, true)
-                : '—';
-
-            const closingDate = summary
-                ? formatDate(summary.closing_date, true)
-                : '—';
-
-            const daysOpen = summary && summary.days_open !== ''
-                ? summary.days_open
-                : '0';
-
-            const openingSeasonSnow = summary
-                ? formatSnowValue(summary.opening_season_to_date)
-                : '—';
-
-            const fiveYearAverages = source.type === 'trail'
-                ? getTrailFiveYearAverages(p, currentSeason)
-                : null;
-
-            const rollingSevenDaySnow = getRollingSevenDaySnowfall(currentDate);
-
-            const seasonLabel = currentSeason.replace('-', '–');
-
-            const historicalSourceNote = source.borrowed
-                ? source.type === 'lift'
-                    ? `<div style="margin-top: 4px; font-size: 12px; color: #555;">Status follows ${source.sourceName} lift reporting.</div>`
-                    : `<div style="margin-top: 4px; font-size: 12px; color: #555;">Historical reporting source: ${source.sourceName}</div>`
-                : '';
-
-            const selectedDateConditionsHtml = `
-                <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
-                    <strong>Selected Date Conditions</strong><br>
-                    7-Day Snowfall: ${rollingSevenDaySnow}
-                </div>
-            `;
-
-            const seasonStatsHtml = source.type === 'trail'
-                ? `
-                    <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
-                        <strong>${seasonLabel} Season</strong><br>
-                        Opened: ${openingDate}<br>
-                        Season Snow at Opening: ${openingSeasonSnow}<br>
-                        Closed: ${closingDate}<br>
-                        Days Open: ${daysOpen}
-                    </div>
-                `
-                : `
-                    <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
-                        <strong>${seasonLabel} Season</strong><br>
-                        Trail opening statistics are not independently reported for this area.
-                    </div>
-                `;
-
-            const fiveYearHtml = fiveYearAverages
-                ? `
-                    <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
-                        <strong>5-Year Average</strong><br>
-                        Opening Date: ${fiveYearAverages.openingDate}<br>
-                        Season Snow at Opening: ${fiveYearAverages.openingSeasonSnow}
-                    </div>
-                `
-                : '';
-
-            new mapboxgl.Popup()
-                .setLngLat(event.lngLat)
-                .setHTML(`
-                    <div style="min-width: 210px;">
-                        <strong style="font-size: 16px;">
-                            ${p.trail_name ?? p.current_name ?? 'Unnamed Trail'}
-                        </strong>
-
-                        <div style="margin-top: 6px;">
-                            <strong>Status:</strong> ${status}
-                        </div>
-
-                        ${historicalSourceNote}
-                        ${selectedDateConditionsHtml}
-                        ${seasonStatsHtml}
-                        ${fiveYearHtml}
-
-                        <div style="margin-top: 7px; padding-top: 6px; border-top: 1px solid #ddd;">
-                            Zone: ${p.mountain_area ?? '—'}<br>
-                            Acres: ${p.acres_25_26 ?? '—'}
-                        </div>
-                    </div>
-                `)
-                .addTo(map);
+            renderActivePopup();
         });
 
-        map.on('click', 'lift-lines', event => {
-            const p = event.features[0].properties;
-            const name = p.lift_name ?? p.current_name ?? 'Unnamed Lift';
+                map.on('click', 'lift-lines', event => {
+            closeActivePopup();
 
-            let status = p.dashboard_status;
-            if (status === 'No Data') status = 'No Data / Not Operational';
-            if (status === 'Not Reported') status = 'Not historically reported';
+            const p =
+                event.features[0].properties;
 
-            new mapboxgl.Popup()
-                .setLngLat(event.lngLat)
-                .setHTML(`
-                    <strong>${name}</strong><br>
-                    Status: ${status}<br>
-                    Lift ID: ${p.lift_id ?? 'N/A'}
-                `)
-                .addTo(map);
+            const popup =
+                new mapboxgl.Popup()
+                    .setLngLat(event.lngLat)
+                    .addTo(map);
+
+            activePopup = {
+                type: 'lift',
+                id: p.lift_id,
+                popup: popup
+            };
+
+            popup.on('close', () => {
+                if (
+                    activePopup &&
+                    activePopup.popup === popup
+                ) {
+                    activePopup = null;
+                }
+            });
+
+            renderActivePopup();
         });
 
         for (const layer of ['trail-fill', 'lift-lines']) {
