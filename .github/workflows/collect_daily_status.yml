@@ -1,0 +1,37 @@
+name: Collect Keystone Daily Status
+
+on:
+  push:
+    branches:
+      - live_season_automation
+    paths:
+      - ".github/workflows/collect_daily_status.yml"
+      - "scripts/**"
+      - "data/live_name_crosswalk.csv"
+      - "requirements.txt"
+
+  schedule:
+    - cron: "0 9 * * *"
+      timezone: "America/Denver"
+
+permissions:
+  contents: write
+
+jobs:
+  collect-status:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Keystone collector validation
+        run: python3 scripts/collect_keystone.py
