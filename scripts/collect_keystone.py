@@ -23,7 +23,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import requests
-
+from playwright.sync_api import sync_playwright
 
 # --------------------------------------------------
 # PATHS / SETTINGS
@@ -73,7 +73,13 @@ LIFT_STATUS_MAP = {
 # --------------------------------------------------
 
 def get_page():
-    """Download Keystone's terrain and lift status page."""
+    """
+    Download Keystone's terrain/lift page.
+
+    Try a normal HTTP request first.
+    If Keystone returns a page without TerrainStatusFeed,
+    fall back to Chromium/Playwright.
+    """
 
     response = requests.get(
         URL,
@@ -90,7 +96,42 @@ def get_page():
 
     response.raise_for_status()
 
-    return response.text
+    html = response.text
+
+    if "FR.TerrainStatusFeed" in html:
+        print("Keystone feed retrieved with requests.")
+        return html
+
+    print(
+        "TerrainStatusFeed not present in requests response. "
+        "Falling back to Chromium..."
+    )
+
+    with sync_playwright() as p:
+
+        browser = p.chromium.launch(headless=True)
+
+        page = browser.new_page()
+
+        page.goto(
+            URL,
+            wait_until="networkidle",
+            timeout=60000,
+        )
+
+        html = page.content()
+
+        browser.close()
+
+    if "FR.TerrainStatusFeed" not in html:
+        raise RuntimeError(
+            "Could not retrieve FR.TerrainStatusFeed "
+            "with requests or Chromium."
+        )
+
+    print("Keystone feed retrieved with Chromium.")
+
+    return html
 
 
 def extract_feed(html):
