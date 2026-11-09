@@ -4,6 +4,7 @@
 mapboxgl.accessToken = 'pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2JmaWllaGQ2NyJ9._ubQTmLlivNH7Wp3eCSckw';
 
 
+
 // --------------------------------------------------
 // 1. CONFIGURATION
 // --------------------------------------------------
@@ -748,6 +749,8 @@ const [
         const nextDayButton = document.getElementById('date-step-down');
         const snowfallChartCanvas = document.getElementById('snowfall-chart');
         const acresChartCanvas = document.getElementById('acres-chart');
+        const currentDateMarker = document.getElementById('date-rail-current-marker');
+        const railDateLabel = document.getElementById('rail-date-label');
 
         // Keep the visible chart heading aligned with the metric name used in the data.
         if (acresChartCanvas) {
@@ -895,10 +898,11 @@ const [
         let liftStatusData = [];
         let dateList = [];
         let currentSeason = INITIAL_SEASON;
+        let latestLiveDate = null;
         let currentDate = INITIAL_DATE;
         let currentSelectedDate = null;
         let activePopup = null;
-
+        
         // Rolling 7-day snowfall is the sum of HN24 for the selected date
         // and the preceding six calendar days. If any day in the seven-day
         // window is missing, return No Data rather than understating snowfall.
@@ -2054,10 +2058,40 @@ const [
             }
         }
 
+        function updateCurrentDateMarker() {
+            if (
+                !currentDateMarker ||
+                currentSeason !== INITIAL_SEASON ||
+                !latestLiveDate ||
+                !dateList.length
+            ) {
+                if (currentDateMarker) {
+                    currentDateMarker.style.display = 'none';
+                }
+                return;
+            }
+
+            const currentIndex = dateList.indexOf(latestLiveDate);
+
+            if (currentIndex === -1) {
+                currentDateMarker.style.display = 'none';
+                return;
+            }
+
+            currentDateMarker.style.top =
+                `${railPercentForIndex(currentIndex)}%`;
+
+            currentDateMarker.style.display = 'block';
+        }
+
         function applyDate(selectedDate) {
             if (!selectedDate) return;
 
             currentSelectedDate = selectedDate;
+
+            const isCurrentDate =
+                currentSeason === INITIAL_SEASON &&
+                selectedDate === latestLiveDate;
 
             currentDate = selectedDate;
             updateDateStepButtons();
@@ -2107,7 +2141,29 @@ const [
             map.getSource('trails').setData(trailData);
             map.getSource('lifts').setData(liftData);
 
-            if (railSliderDate) railSliderDate.textContent = formatDate(selectedDate);
+            if (railSliderDate) {
+                railSliderDate.textContent =
+                    isCurrentDate
+                        ? `CURRENT • ${formatDate(selectedDate)}`
+                        : formatDate(selectedDate);
+
+                railSliderDate.classList.toggle(
+                    'current-date-selected',
+                    isCurrentDate
+                );
+            }
+
+            if (railDateLabel) {
+                railDateLabel.textContent =
+                    isCurrentDate
+                        ? `CURRENT • ${formatDate(selectedDate)}`
+                        : formatDate(selectedDate);
+
+                railDateLabel.classList.toggle(
+                    'current-date-selected',
+                    isCurrentDate
+                );
+            }
 
             positionRailHandle(selectedDate);
             updateConditions(selectedDate);
@@ -2179,6 +2235,27 @@ const [
                 dateList = buildReportingDateRange(season);
                 configureVerticalRail(seasonInfo);
 
+                if (season === INITIAL_SEASON) {
+
+                    const collectedDates =
+                        trailStatusData
+                            .map(row => normalizeDate(row.date))
+                            .filter(date => dateList.includes(date))
+                            .sort();
+
+                    latestLiveDate =
+                        collectedDates.length
+                            ? collectedDates[
+                                collectedDates.length - 1
+                            ]
+                            : null;
+
+                } else {
+
+                    latestLiveDate = null;
+                }
+
+                updateCurrentDateMarker();
 
                 if (railOpenDateValue) {
                     railOpenDateValue.textContent = seasonInfo.resort_open_date
@@ -2258,11 +2335,10 @@ const [
                     });
                 }
 
-            map.on('click', 'lift-lines', event => {
+        map.on('click', 'trail-fill', event => {
             closeActivePopup();
 
-            const p =
-                event.features[0].properties;
+            const p = event.features[0].properties;
 
             const popup =
                 new mapboxgl.Popup()
@@ -2270,9 +2346,9 @@ const [
                     .addTo(map);
 
             activePopup = {
-                type: 'lift',
-                id: p.lift_id,
-                popup: popup
+                type: 'trail',
+                id: p.trail_id,
+                popup
             };
 
             popup.on('close', () => {
@@ -2287,11 +2363,10 @@ const [
             renderActivePopup();
         });
 
-                map.on('click', 'lift-lines', event => {
+        map.on('click', 'lift-lines', event => {
             closeActivePopup();
 
-            const p =
-                event.features[0].properties;
+            const p = event.features[0].properties;
 
             const popup =
                 new mapboxgl.Popup()
@@ -2301,7 +2376,7 @@ const [
             activePopup = {
                 type: 'lift',
                 id: p.lift_id,
-                popup: popup
+                popup
             };
 
             popup.on('close', () => {
