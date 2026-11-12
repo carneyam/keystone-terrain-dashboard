@@ -315,7 +315,7 @@ function formatAcres(value) {
 
 const map = new mapboxgl.Map({
     container: 'map',
-    style: 'mapbox://styles/mapbox/standard-satellite',
+    style: 'mapbox://styles/mapbox/standard',
     center: DEFAULT_CAMERA.center,
     zoom: DEFAULT_CAMERA.zoom,
     pitch: DEFAULT_CAMERA.pitch,

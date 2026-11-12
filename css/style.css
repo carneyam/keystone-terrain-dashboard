@@ -1501,3 +1501,9 @@ body {
 
     white-space: nowrap;
 }
+
+#map-legend,
+#date-rail-panel,
+.history-chart-card {
+    background: rgba(217, 221, 225, 0.96);
+}
