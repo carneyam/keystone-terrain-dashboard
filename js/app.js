@@ -157,6 +157,33 @@ function formatDate(dateString, short = false) {
     });
 }
 
+function getMountainTodayDate() {
+
+            const parts =
+                new Intl.DateTimeFormat(
+                    'en-US',
+                    {
+                        timeZone: 'America/Denver',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    }
+                ).formatToParts(new Date());
+
+            const values = Object.fromEntries(
+                parts.map(part => [
+                    part.type,
+                    part.value
+                ])
+            );
+
+            return (
+                `${values.year}-` +
+                `${values.month}-` +
+                `${values.day}`
+            );
+        }
+
 // Reporting slider is intentionally fixed at Oct 15-Apr 21.
 // Resort opening/closing labels still come from seasons.csv.
 function buildReportingDateRange(season) {
@@ -346,7 +373,7 @@ const visibleLiftFilter = [
 // 5. LOAD APP
 // --------------------------------------------------
 
-map.on('load', async () => {
+map.once('style.load', async () => {
     try {
 
         // --------------------------------------------------
@@ -738,6 +765,7 @@ const [
         const railOpenDateValue = document.getElementById('rail-open-date-value');
         const railCloseDateValue = document.getElementById('rail-close-date-value');
         const railHn24Value = document.getElementById('rail-hn24-value');
+        const railSevenDaySnowValue = document.getElementById('rail-seven-day-snow-value');
         const railSeasonSnowValue = document.getElementById('rail-season-snow-value');
         const railHsValue = document.getElementById('rail-hs-value');
         const railAcresOpenValue = document.getElementById('rail-acres-open-value');
@@ -1832,42 +1860,110 @@ const [
         }
 
         function updateConditions(selectedDate) {
-            const row = conditionsByKey.get(`${currentSeason}|${selectedDate}`);
+            const row = conditionsByKey.get(
+                `${currentSeason}|${selectedDate}`
+            );
 
             if (!row) {
-                if (railHn24Value) railHn24Value.textContent = '—';
-                if (railSeasonSnowValue) railSeasonSnowValue.textContent = '—';
-                if (railHsValue) railHsValue.textContent = '—';
-                if (railAcresOpenValue) railAcresOpenValue.textContent = '—';
+                if (railHn24Value) {
+                    railHn24Value.textContent = '—';
+                }
+
+                if (railSevenDaySnowValue) {
+                    railSevenDaySnowValue.textContent = '—';
+                }
+
+                if (railSeasonSnowValue) {
+                    railSeasonSnowValue.textContent = '—';
+                }
+
+                if (railHsValue) {
+                    railHsValue.textContent = '—';
+                }
+
+                if (railAcresOpenValue) {
+                    railAcresOpenValue.textContent = '—';
+                }
+
                 return;
             }
 
             const hn24 = formatSnowValue(
-                getFirstValue(row, ['hn24', 'hn_24', '24_hour_snow', '24hr_snow'])
+                getFirstValue(
+                    row,
+                    [
+                        'hn24',
+                        'hn_24',
+                        '24_hour_snow',
+                        '24hr_snow'
+                    ]
+                )
             );
 
+            const sevenDaySnow =
+                getRollingSevenDaySnowfall(
+                    selectedDate
+                );
+
             const seasonSnow = formatSnowValue(
-                getFirstValue(row, [
-                    'hn_season_to_date',
-                    'season_snowfall',
-                    'season_to_date',
-                    'season_snow',
-                    'hn_season'
-                ])
+                getFirstValue(
+                    row,
+                    [
+                        'hn_season_to_date',
+                        'season_snowfall',
+                        'season_to_date',
+                        'season_snow',
+                        'hn_season'
+                    ]
+                )
             );
 
             const settledBase = formatSnowValue(
-                getFirstValue(row, ['hs', 'settled_base', 'base', 'base_depth'])
+                getFirstValue(
+                    row,
+                    [
+                        'hs',
+                        'settled_base',
+                        'base',
+                        'base_depth'
+                    ]
+                )
             );
 
             const acresOpen = formatAcres(
-                getFirstValue(row, ['acres_open', 'reported_acres', 'acres'])
+                getFirstValue(
+                    row,
+                    [
+                        'acres_open',
+                        'reported_acres',
+                        'acres'
+                    ]
+                )
             );
 
-            if (railHn24Value) railHn24Value.textContent = hn24;
-            if (railSeasonSnowValue) railSeasonSnowValue.textContent = seasonSnow;
-            if (railHsValue) railHsValue.textContent = settledBase;
-            if (railAcresOpenValue) railAcresOpenValue.textContent = acresOpen;
+            if (railHn24Value) {
+                railHn24Value.textContent = hn24;
+            }
+
+            if (railSevenDaySnowValue) {
+                railSevenDaySnowValue.textContent =
+                    sevenDaySnow;
+            }
+
+            if (railSeasonSnowValue) {
+                railSeasonSnowValue.textContent =
+                    seasonSnow;
+            }
+
+            if (railHsValue) {
+                railHsValue.textContent =
+                    settledBase;
+            }
+
+            if (railAcresOpenValue) {
+                railAcresOpenValue.textContent =
+                    acresOpen;
+            }
         }
 
         // Missing daily records remain No Data. A missing record does NOT
@@ -1886,6 +1982,102 @@ const [
         }
 
 
+        function getLiveTrailSeasonSummary(
+            trailProperties,
+            selectedDate
+        ) {
+                const source = resolveTrailDataSource(
+                    trailProperties,
+                    currentSeason
+                );
+
+                let rows = [];
+
+                if (source.type === 'lift') {
+                    rows = liftStatusData.filter(
+                        row => row.lift_id === source.id
+                    );
+                } else {
+                    rows = trailStatusData.filter(
+                        row => row.trail_id === source.id
+                    );
+                }
+
+                const openRows = rows
+                    .filter(row => {
+                        const status = normalizeStatus(row);
+
+                        return (
+                            status === 'Open' ||
+                            status === 'Groomed'
+                        );
+                    })
+                    .sort((a, b) =>
+                        a.date.localeCompare(b.date)
+                    );
+
+                const openingDate =
+                    openRows.length
+                        ? openRows[0].date
+                        : '';
+
+                const daysOpen = rows.filter(row => {
+                    if (!row.date || row.date > selectedDate) {
+                        return false;
+                    }
+
+                    const status = normalizeStatus(row);
+
+                    return (
+                        status === 'Open' ||
+                        status === 'Groomed'
+                    );
+                }).length;
+
+                let openingSeasonSnow = '—';
+
+                if (openingDate) {
+
+                    const conditions =
+                        conditionsByKey.get(
+                            `${currentSeason}|${openingDate}`
+                        );
+
+                    if (conditions) {
+
+                        const seasonSnow =
+                            getFirstValue(
+                                conditions,
+                                [
+                                    'season_to_date',
+                                    'hn_season_to_date',
+                                    'season_snowfall',
+                                    'season_snow',
+                                    'hn_season'
+                                ]
+                            );
+
+                        openingSeasonSnow =
+                            formatSnowValue(
+                                seasonSnow
+                            );
+                    }
+                }
+
+                return {
+                    openingDate:
+                        openingDate
+                            ? formatDate(openingDate, true)
+                            : '—',
+
+                    openingSeasonSnow,
+
+                    // Current season is still active.
+                    closingDate: '—',
+
+                    daysOpen: String(daysOpen)
+                };
+            }
         function renderActivePopup() {
             if (!activePopup || !currentSelectedDate) {
                 return;
@@ -1908,39 +2100,73 @@ const [
                     p.dashboard_status
                 );
 
-                const summaryKey =
-                    `${p.trail_id}|${currentSeason}`;
+                let openingDate = '—';
+                let closingDate = '—';
+                let daysOpen = '0';
+                let openingSeasonSnow = '—';
 
-                const summary =
-                    trailSeasonSummaryLookup.get(
-                        summaryKey
-                    );
 
-                const openingDate = summary
-                    ? formatDate(
-                        summary.opening_date,
-                        true
-                    )
-                    : '—';
+                if (currentSeason === INITIAL_SEASON) {
 
-                const closingDate = summary
-                    ? formatDate(
-                        summary.closing_date,
-                        true
-                    )
-                    : '—';
+                    const liveSummary =
+                        getLiveTrailSeasonSummary(
+                            p,
+                            currentSelectedDate
+                        );
 
-                const daysOpen =
-                    summary &&
-                    summary.days_open !== ''
-                        ? summary.days_open
-                        : '0';
+                    openingDate =
+                        liveSummary.openingDate;
 
-                const openingSeasonSnow = summary
-                    ? formatSnowValue(
-                        summary.opening_season_to_date
-                    )
-                    : '—';
+                    closingDate =
+                        liveSummary.closingDate;
+
+                    daysOpen =
+                        liveSummary.daysOpen;
+
+                    openingSeasonSnow =
+                        liveSummary.openingSeasonSnow;
+
+                } else {
+
+                    const source =
+                        resolveTrailDataSource(
+                            p,
+                            currentSeason
+                        );
+
+                    const summary =
+                        source.type === 'trail'
+                            ? trailSeasonSummaryLookup.get(
+                                `${source.id}|${currentSeason}`
+                            )
+                            : null;
+
+                    openingDate = summary
+                        ? formatDate(
+                            summary.opening_date,
+                            true
+                        )
+                        : '—';
+
+                    closingDate = summary
+                        ? formatDate(
+                            summary.closing_date,
+                            true
+                        )
+                        : '—';
+
+                    daysOpen =
+                        summary &&
+                        summary.days_open !== ''
+                            ? summary.days_open
+                            : '0';
+
+                    openingSeasonSnow = summary
+                        ? formatSnowValue(
+                            summary.opening_season_to_date
+                        )
+                        : '—';
+                }
 
                 const seasonLabel =
                     currentSeason.replace('-', '–');
@@ -2081,6 +2307,15 @@ const [
             currentDateMarker.style.top =
                 `${railPercentForIndex(currentIndex)}%`;
 
+            const markerLabel =
+                currentDateMarker.querySelector('span');
+
+            if (markerLabel) {
+                markerLabel.textContent =
+                    latestLiveDate === getMountainTodayDate()
+                        ? 'CURRENT'
+                        : 'LATEST';
+            }
             currentDateMarker.style.display = 'block';
         }
 
@@ -2089,9 +2324,22 @@ const [
 
             currentSelectedDate = selectedDate;
 
-            const isCurrentDate =
+            const isLatestDate =
                 currentSeason === INITIAL_SEASON &&
                 selectedDate === latestLiveDate;
+
+            const latestIsToday =
+                latestLiveDate ===
+                getMountainTodayDate();
+
+            const liveDatePrefix =
+                isLatestDate
+                    ? (
+                        latestIsToday
+                            ? 'CURRENT'
+                            : 'LATEST'
+                    )
+                    : '';
 
             currentDate = selectedDate;
             updateDateStepButtons();
@@ -2142,26 +2390,28 @@ const [
             map.getSource('lifts').setData(liftData);
 
             if (railSliderDate) {
+
                 railSliderDate.textContent =
-                    isCurrentDate
-                        ? `CURRENT • ${formatDate(selectedDate)}`
+                    liveDatePrefix
+                        ? `${liveDatePrefix} • ${formatDate(selectedDate)}`
                         : formatDate(selectedDate);
 
                 railSliderDate.classList.toggle(
                     'current-date-selected',
-                    isCurrentDate
+                    isLatestDate
                 );
-            }
+}
 
             if (railDateLabel) {
+
                 railDateLabel.textContent =
-                    isCurrentDate
-                        ? `CURRENT • ${formatDate(selectedDate)}`
+                    liveDatePrefix
+                        ? `${liveDatePrefix} • ${formatDate(selectedDate)}`
                         : formatDate(selectedDate);
 
                 railDateLabel.classList.toggle(
                     'current-date-selected',
-                    isCurrentDate
+                    isLatestDate
                 );
             }
 
