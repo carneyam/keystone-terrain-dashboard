@@ -433,7 +433,7 @@ const [
         ] = await Promise.all([
             fetch(DATA_FILES.trails),
             fetch(DATA_FILES.lifts),
-            fetch(DATA_FILES.conditions),
+            fetch(DATA_FILES.conditions,{ cache: 'no-store' }),
             fetch(DATA_FILES.seasons),
             fetch(DATA_FILES.trailSeasonSummary)
         ]);
@@ -1195,8 +1195,8 @@ const [
                     plugins: {
                         legend: {
                             display: true,
-                            position: 'top',
-                            align: 'end',
+                            position: 'chartArea',
+                            align: 'start',
                             labels: {
                                 boxWidth: 16,
                                 boxHeight: 2,
@@ -1446,8 +1446,8 @@ const [
                     plugins: {
                         legend: {
                             display: true,
-                            position: 'top',
-                            align: 'end',
+                            position: 'chartArea',
+                            align: 'start',
                             labels: {
                                 boxWidth: 16,
                                 boxHeight: 2,
@@ -2450,7 +2450,10 @@ const [
             if (nextDayButton) nextDayButton.disabled = true;
 
             try {
-                const trailResponse = await fetch(trailFile);
+                const trailResponse = await fetch(
+                    trailFile,
+                    { cache: 'no-store' }
+                );
 
                 if (!trailResponse.ok) {
                     throw new Error(`Could not load ${trailFile}: ${trailResponse.status}`);
@@ -2459,7 +2462,10 @@ const [
                 trailStatusData = parseCSV(await trailResponse.text());
 
                 if (hasLiftStatus) {
-                    const liftResponse = await fetch(liftFile);
+                    const liftResponse = await fetch(
+                        liftFile,
+                        { cache: 'no-store' }
+                    );
 
                     if (!liftResponse.ok) {
                         throw new Error(`Could not load ${liftFile}: ${liftResponse.status}`);

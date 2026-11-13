@@ -336,10 +336,7 @@ body {
     }
 
     #map-legend {
-        left: 10px;
-        bottom: 20px;
-
-        width: 210px;
+    width: clamp(220px, 16vw, 300px);
     }
 }
 
@@ -772,6 +769,8 @@ body {
     left: 18px;
     right: 18px;
     bottom: 10px;
+
+    height: clamp(220px, 27vh, 340px);
 
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1243,50 +1242,365 @@ body {
 }
 
 /* ==================================================
-   FINAL POSITION ADJUSTMENTS
+   FINAL RESPONSIVE DASHBOARD LAYOUT
    ================================================== */
 
+:root {
+    --ui-edge: clamp(12px, 1.2vw, 20px);
+    --ui-gap: clamp(10px, 0.9vw, 16px);
 
-/* Move vertical dashboard upward so it clears charts */
+    --rail-panel-width:
+        clamp(230px, 13vw, 270px);
+
+    --legend-width:
+        clamp(165px, 11vw, 205px);
+
+    --charts-height:
+        clamp(165px, 20vh, 245px);
+}
+
+
+/* --------------------------------------------------
+   HISTORY CHARTS
+   -------------------------------------------------- */
+
+#history-charts {
+    position: absolute;
+
+    left: var(--ui-edge);
+    right: var(--ui-edge);
+    bottom: 10px;
+
+    height: var(--charts-height);
+
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1fr)
+        minmax(0, 1fr);
+
+    gap: 10px;
+
+    z-index: 2;
+    pointer-events: none;
+}
+
+.history-chart-card {
+    min-width: 0;
+
+    padding: 7px 10px;
+
+    background: rgba(217, 221, 225, 0.96);
+    border-radius: 8px;
+
+    box-sizing: border-box;
+
+    pointer-events: auto;
+}
+
+.history-chart-title {
+    margin-bottom: 3px;
+
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.history-chart-container {
+    position: relative;
+    height: calc(100% - 20px);
+}
+
+
+/* --------------------------------------------------
+   DATE / TERRAIN DASHBOARD
+   Upper-left corner
+   -------------------------------------------------- */
 
 #date-rail-panel {
-    bottom: 225px;
-}
+    position: absolute;
 
+    top: var(--ui-edge);
+    left: var(--ui-edge);
 
-/* Move 2D / 3D controls below Mapbox navigation */
+    width: var(--rail-panel-width);
 
-#view-controls {
-    top: 145px;
-    right: 10px;
+    height: clamp(
+        520px,
+        calc(
+            100vh -
+            var(--charts-height) -
+            44px
+        ),
+        820px
+    );
 
-    z-index: 5;
-}
+    padding: clamp(10px, 0.8vw, 14px);
 
-#view-controls button {
-    padding: 4px 7px;
-    font-size: 10px;
-}
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
 
-/* ==================================================
-   DATE RAIL INTERACTION
-   ================================================== */
+    box-sizing: border-box;
 
-#date-rail-panel,
-#date-rail,
-.date-rail-tick,
-.date-rail-endpoint,
-#rail-slider-date {
+    background: rgba(217, 221, 225, 0.96);
+    border-radius: 8px;
+
+    z-index: 4;
+
     user-select: none;
     -webkit-user-select: none;
 }
 
-#date-rail {
-    cursor: ns-resize;
-    touch-action: none;
+
+/* Dashboard heading */
+
+.rail-dashboard-title {
+    margin-bottom: 9px;
+
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.15;
 }
 
+
+/* Season / date / opening / closing rows */
+
+.rail-dashboard-row {
+    display: flex;
+    justify-content: flex-start;
+    gap: 5px;
+    align-items: center;
+
+    gap: 10px;
+
+    margin-bottom: 6px;
+
+    font-size: 11px;
+    line-height: 1.2;
+}
+
+.rail-dashboard-row .rail-label {
+    flex: 0 0 auto;
+    font-weight: 700;
+}
+
+#rail-season-select {
+    max-width: 90px;
+
+    padding: 2px 5px;
+
+    font-size: 11px;
+}
+
+
+/* --------------------------------------------------
+   PROMINENT SELECTED DATE
+   -------------------------------------------------- */
+
+#rail-date-label {
+    max-width: none;
+
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.15;
+
+    text-align: right;
+    white-space: nowrap;
+}
+
+#rail-date-label.current-date-selected,
+#rail-slider-date.current-date-selected {
+    color: #2563eb;
+    font-weight: 800;
+}
+
+
+/* --------------------------------------------------
+   CONDITIONS
+   One condition per line
+   -------------------------------------------------- */
+
+.rail-conditions {
+    display: grid;
+    grid-template-columns: 1fr;
+
+    gap: 5px;
+
+    margin-top: 12px;
+    margin-bottom: 12px;
+}
+
+.rail-condition {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+
+    width: 100%;
+    min-width: 0;
+}
+
+.rail-condition-label {
+    font-size: 10px;
+    line-height: 1.15;
+
+    white-space: nowrap;
+}
+
+.rail-condition-value {
+    margin-left: 18px;
+
+    font-size: 14px;
+    line-height: 1;
+    font-weight: 700;
+
+    text-align: right;
+}
+
+
+/* --------------------------------------------------
+   DIVIDER + LARGE DATE ABOVE RAIL
+   -------------------------------------------------- */
+
+.date-rail-divider {
+    margin: 8px 0 7px;
+
+    border-top: 1px solid #bbb;
+}
+
+#rail-slider-date {
+    width: 100%;
+
+    margin: 6px 0 10px;
+
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.15;
+
+    text-align: center;
+    white-space: nowrap;
+}
+
+
+/* --------------------------------------------------
+   DATE RAIL
+   -------------------------------------------------- */
+
+.date-rail-endpoint {
+    width: 100%;
+
+    text-align: center;
+
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.date-rail-start {
+    margin-bottom: 7px;
+}
+
+.date-rail-end {
+    margin-top: 7px;
+}
+
+#date-rail {
+    position: relative;
+
+    width: 100%;
+
+    flex: 1 1 auto;
+    min-height: 220px;
+    height: auto;
+
+    cursor: ns-resize;
+    touch-action: none;
+
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+
+/* Center vertical rail */
+
+.date-rail-track {
+    position: absolute;
+
+    top: 0;
+    bottom: 0;
+
+    left: 50%;
+
+    width: 7px;
+
+    transform: translateX(-50%);
+
+    border-radius: 4px;
+
+    background: #9ca3af;
+}
+
+
+/* Month ticks */
+
+.date-rail-tick {
+    position: absolute;
+
+    left: 0;
+
+    width: 100%;
+    height: 12px;
+
+    transform: translateY(-50%);
+}
+
+.tick-line {
+    position: absolute;
+
+    left: calc(50% - 8px);
+    top: 5px;
+
+    width: 16px;
+    height: 1px;
+
+    background: #555;
+}
+
+.tick-label {
+    position: absolute;
+
+    left: auto;
+    right: calc(50% + 16px);
+    top: 0;
+
+    width: 48px;
+
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 11px;
+
+    text-align: right;
+}
+
+
+/* Date handle */
+
 #date-rail-handle {
+    position: absolute;
+
+    left: 50%;
+    top: 50%;
+
+    width: 19px;
+    height: 19px;
+
+    transform: translate(-50%, -50%);
+
+    border-radius: 50%;
+
+    background: white;
+    border: 3px solid #2563eb;
+
+    box-sizing: border-box;
+
     cursor: grab;
 }
 
@@ -1294,169 +1608,23 @@ body {
     cursor: grabbing;
 }
 
-.history-chart-container {
-    height: 175px;
-}
 
-#date-rail-panel {
-    bottom: 255px;
-}
-
-/* ==================================================
-   DATE STEP BUTTONS — FINAL POLISH
-   ================================================== */
-
-#date-rail-panel {
-    padding-bottom: 10px;
-}
-
-.date-rail-end {
-    margin-bottom: 7px;
-}
-
-#date-step-controls {
-    position: static;
-    width: 100%;
-
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-
-    margin-top: 5px;
-    padding-bottom: 1px;
-
-    box-sizing: border-box;
-}
-
-#date-step-controls button {
-    width: 28px;
-    height: 24px;
-    padding: 0;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    border: 1px solid #777;
-    border-radius: 4px;
-
-    background: rgba(255, 255, 255, 0.98);
-    color: #333;
-
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 1;
-
-    cursor: pointer;
-}
-
-#date-step-controls button:hover:not(:disabled) {
-    background: #eeeeee;
-}
-
-#date-step-controls button:active:not(:disabled) {
-    transform: translateY(1px);
-}
-
-#date-step-controls button:disabled {
-    opacity: 0.35;
-    cursor: default;
-}
-
-/* ==================================================
-   VERTICAL DASHBOARD — WIDTH / TEXT POLISH
-   ================================================== */
-
-/* Slightly wider dashboard card */
-#date-rail-panel {
-    width: 150px;
-}
-
-
-/* Larger dashboard heading */
-.rail-dashboard-title {
-    font-size: 13px;
-    line-height: 1.15;
-}
-
-
-/* Larger season / opening / closing rows */
-.rail-dashboard-row {
-    font-size: 9.5px;
-    line-height: 1.2;
-}
-
-
-/* Slightly larger season selector */
-#rail-season-select {
-    font-size: 9.5px;
-}
-
-
-/* Larger condition labels */
-.rail-condition-label {
-    font-size: 7.5px;
-    line-height: 1.15;
-}
-
-
-/* Larger condition values */
-.rail-condition-value {
-    font-size: 12px;
-}
-
-
-/* ==================================================
-   CENTER DATE RAIL IN THE WIDER PANEL
-   ================================================== */
-
-#date-rail {
-    width: 100%;
-}
-
-
-/* Center the vertical track */
-.date-rail-track {
-    left: 50%;
-    transform: translateX(-50%);
-}
-
-
-/* Center the round date handle on the track */
-#date-rail-handle {
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-
-
-/* Center each month tick across the track */
-.tick-line {
-    left: calc(50% - 7px);
-}
-
-
-/* Keep month labels to the left of the centered rail */
-.tick-label {
-    left: auto;
-    right: calc(50% + 14px);
-    width: 45px;
-    text-align: right;
-}
-
-/* ==================================================
-   CURRENT LIVE-DATE MARKER
-   ================================================== */
+/* --------------------------------------------------
+   CURRENT / LATEST MARKER
+   -------------------------------------------------- */
 
 #date-rail-current-marker {
     position: absolute;
+
     left: 50%;
-    width: 34px;
+
+    width: 38px;
     height: 3px;
+
+    transform: translate(-50%, -50%);
 
     background: #2563eb;
 
-    transform: translate(-50%, -50%);
     z-index: 8;
 
     pointer-events: none;
@@ -1467,43 +1635,275 @@ body {
     content: "";
 
     position: absolute;
+
     left: 50%;
     top: 50%;
 
-    width: 9px;
-    height: 9px;
-
-    background: #2563eb;
-    border: 2px solid #ffffff;
-    border-radius: 50%;
+    width: 10px;
+    height: 10px;
 
     transform: translate(-50%, -50%);
+
+    background: #2563eb;
+
+    border: 2px solid white;
+    border-radius: 50%;
 }
 
 #date-rail-current-marker span {
     position: absolute;
 
-    left: 24px;
+    left: 26px;
     top: 50%;
 
     transform: translateY(-50%);
 
-    padding: 2px 5px;
+    padding: 3px 6px;
 
     background: #2563eb;
-    color: #ffffff;
+    color: white;
 
     border-radius: 3px;
 
     font-size: 9px;
     font-weight: 700;
-    letter-spacing: 0.4px;
+
+    letter-spacing: 0.3px;
 
     white-space: nowrap;
 }
 
-#map-legend,
 #date-rail-panel,
+#map-legend,
 .history-chart-card {
+    border: 1px solid rgba(37, 99, 235, 0.7);
+}
+
+/* --------------------------------------------------
+   SINGLE-DAY BUTTONS
+   -------------------------------------------------- */
+
+#date-step-controls,
+.date-step-controls {
+    width: 100%;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    gap: 10px;
+
+    margin-top: 10px;
+
+    flex: 0 0 auto;
+}
+
+#date-step-controls button,
+.date-step-controls button {
+    width: 42px;
+    height: 34px;
+
+    padding: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid #777;
+    border-radius: 5px;
+
+    background: rgba(255, 255, 255, 0.98);
+    color: #333;
+
+    font-size: 16px;
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+#date-step-controls button:hover:not(:disabled),
+.date-step-controls button:hover:not(:disabled) {
+    background: #eeeeee;
+}
+
+#date-step-controls button:disabled,
+.date-step-controls button:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+
+/* --------------------------------------------------
+   LEGEND
+   Immediately right of date dashboard
+   -------------------------------------------------- */
+
+#map-legend {
+    position: absolute;
+
+    top: var(--ui-edge);
+
+    left: calc(
+        var(--ui-edge) +
+        var(--rail-panel-width) +
+        var(--ui-gap)
+    );
+
+    width: var(--legend-width);
+
+    padding: 8px 10px;
+
+    box-sizing: border-box;
+
     background: rgba(217, 221, 225, 0.96);
+    border-radius: 8px;
+
+    font-size: 9px;
+    line-height: 1.15;
+
+    z-index: 4;
+}
+
+.legend-title {
+    margin-bottom: 4px;
+
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+
+    gap: 5px;
+    margin-bottom: 2px;
+}
+
+.legend-swatch {
+    width: 10px;
+    height: 10px;
+
+    flex: 0 0 10px;
+
+    border: 1px solid rgba(0, 0, 0, 0.35);
+}
+
+.legend-note {
+    margin-top: 5px;
+    padding-top: 5px;
+
+    border-top: 1px solid #bbb;
+
+    font-size: 8px;
+    line-height: 1.2;
+}
+
+
+/* --------------------------------------------------
+   2D / 3D CONTROLS
+   -------------------------------------------------- */
+
+#view-controls {
+    top: 145px;
+    right: 10px;
+
+    z-index: 5;
+}
+
+#view-controls button {
+    padding: 4px 7px;
+
+    font-size: 10px;
+}
+
+
+/* --------------------------------------------------
+   SMALLER LAPTOPS
+   -------------------------------------------------- */
+
+@media (max-height: 800px) {
+
+    --charts-height:
+    clamp(16great, 5px, 20vh, 245px);
+
+    #date-rail-panel {
+        height:
+            calc(
+                100vh -
+                var(--charts-height) -
+                38px
+            );
+
+        min-height: 480px;
+
+        padding: 19px 14px;
+    }
+
+    .rail-conditions {
+        gap: 3px;
+        margin: 8px 0;
+    }
+
+    #rail-slider-date {
+        margin: 4px 0 7px;
+    }
+
+    #date-rail {
+        min-height: 185px;
+    }
+}
+
+
+/* --------------------------------------------------
+   NARROWER SCREENS
+   -------------------------------------------------- */
+
+@media (max-width: 1000px) {
+
+    :root {
+        --rail-panel-width:
+            clamp(215px, 27vw, 245px);
+
+        --legend-width:
+            clamp(150px, 20vw, 185px);
+    }
+}
+
+/* --------------------------------------------------
+   LARGE DESKTOP MONITORS
+   -------------------------------------------------- */
+
+@media (min-width: 1600px) {
+
+    :root {
+        --rail-panel-width:
+            clamp(245px, 13vw, 285px);
+
+        --legend-width:
+            clamp(165px, 10vw, 195px);
+
+        --charts-height:
+            clamp(180px, 20vh, 260px);
+    }
+
+    .rail-dashboard-title {
+        font-size: 15px;
+    }
+
+    .rail-dashboard-row {
+        font-size: 11px;
+    }
+
+    #rail-date-label,
+    #rail-slider-date {
+        font-size: 13px;
+    }
+
+    .rail-condition-label {
+        font-size: 10px;
+    }
+
+    .rail-condition-value {
+        font-size: 14px;
+    }
 }
