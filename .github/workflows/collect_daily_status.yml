@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - live_season_automation
+      - main
     paths:
       - ".github/workflows/collect_daily_status.yml"
       - "scripts/**"
@@ -11,7 +12,7 @@ on:
       - "requirements.txt"
 
   schedule:
-    - cron: "0 9 * * *"
+    - cron: "7 9 * * *"
       timezone: "America/Denver"
 
 permissions:
@@ -49,6 +50,7 @@ jobs:
 
           git add data/trail_status_26-27.csv
           git add data/lift_status_26-27.csv
+          git add data/daily_conditions.csv
 
           if git diff --cached --quiet; then
             echo "No status changes to commit."
