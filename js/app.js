@@ -3,8 +3,6 @@
 // ==================================================
 mapboxgl.accessToken = 'pk.eyJ1IjoiY2FybmV5YW0iLCJhIjoiY211azZhdnRlMDQ2czJ4b2JmaWllaGQ2NyJ9._ubQTmLlivNH7Wp3eCSckw';
 
-
-
 // --------------------------------------------------
 // 1. CONFIGURATION
 // --------------------------------------------------
@@ -315,7 +313,7 @@ function formatAcres(value) {
 
 const map = new mapboxgl.Map({
     container: 'map',
-    style: 'mapbox://styles/mapbox/standard',
+    style: 'mapbox://styles/mapbox/standard-satellite',
     center: DEFAULT_CAMERA.center,
     zoom: DEFAULT_CAMERA.zoom,
     pitch: DEFAULT_CAMERA.pitch,
