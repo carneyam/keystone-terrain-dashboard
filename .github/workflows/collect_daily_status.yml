@@ -1,6 +1,8 @@
 name: Collect Keystone Daily Status
 
 on:
+  workflow_dispatch:
+  
   push:
     branches:
       - live_season_automation
