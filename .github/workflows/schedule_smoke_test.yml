@@ -1,0 +1,16 @@
+name: Schedule Smoke Test
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Confirm scheduled trigger
+        run: |
+          echo "Scheduled workflow fired"
+          date
