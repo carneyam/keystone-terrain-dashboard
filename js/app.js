@@ -835,6 +835,12 @@ const [
         const acresChartCanvas = document.getElementById('acres-chart');
         const currentDateMarker = document.getElementById('date-rail-current-marker');
         const railDateLabel = document.getElementById('rail-date-label');
+        const railGreenStatus = document.getElementById('rail-green-status');
+        const railBlueStatus = document.getElementById('rail-blue-status');
+        const railBlackStatus = document.getElementById('rail-black-status');
+        const railHikingStatus = document.getElementById('rail-hiking-status');
+        const railLiftsStatus = document.getElementById('rail-lifts-status');
+        const railTerrainPercent = document.getElementById('rail-terrain-percent');
 
         // Keep the visible chart heading aligned with the metric name used in the data.
         if (acresChartCanvas) {
@@ -2386,6 +2392,146 @@ const [
             currentDateMarker.style.display = 'block';
         }
 
+        function getTerrainCategory(feature) {
+    const p = feature.properties;
+    const area = p.mountain_area;
+    const name = p.trail_name;
+
+    const hikingAccessFeatures = [
+        'Independence Bowl',
+        'North Bowl',
+        'South Bowl',
+        'The Windows'
+    ];
+
+    if (
+        area === 'Independence Bowl' ||
+        area === 'Windows' ||
+        (
+            area === 'Hiking Access' &&
+            hikingAccessFeatures.includes(name)
+        )
+    ) {
+        return 'Hiking';
+    }
+
+    return p.difficulty;
+}
+
+function updateTrailStatusCounts() {
+    const categories = {
+        Green: { open: 0, total: 0 },
+        Blue: { open: 0, total: 0 },
+        Black: { open: 0, total: 0 },
+        Hiking: { open: 0, total: 0 }
+    };
+
+    const openStatuses = new Set([
+        'Open',
+        'Groomed',
+        'Racing'
+    ]);
+
+    trailData.features.forEach(feature => {
+        const p = feature.properties;
+
+        if (!p.season_visible) return;
+
+        const category = getTerrainCategory(feature);
+
+        if (!categories[category]) return;
+
+        categories[category].total++;
+
+        if (openStatuses.has(p.dashboard_status)) {
+            categories[category].open++;
+        }
+    });
+
+    railGreenStatus.textContent =
+        `${categories.Green.open} / ${categories.Green.total}`;
+
+    railBlueStatus.textContent =
+        `${categories.Blue.open} / ${categories.Blue.total}`;
+
+    railBlackStatus.textContent =
+        `${categories.Black.open} / ${categories.Black.total}`;
+
+    railHikingStatus.textContent =
+        `${categories.Hiking.open} / ${categories.Hiking.total}`;
+}
+
+function updateLiftStatusCount() {
+    if (!railLiftsStatus) return;
+
+    const hasLiftStatus =
+        getSeasonStartYear(currentSeason) >= FIRST_LIFT_STATUS_SEASON_YEAR;
+
+    // Lift status was not historically reported before 2016-17.
+    if (!hasLiftStatus) {
+        railLiftsStatus.textContent = '— / —';
+        return;
+    }
+
+    const visibleLifts = liftData.features.filter(
+        feature => feature.properties.season_visible
+    );
+
+    const openLifts = visibleLifts.filter(
+        feature => feature.properties.dashboard_status === 'Open'
+    );
+
+    railLiftsStatus.textContent =
+        `${openLifts.length} / ${visibleLifts.length}`;
+}
+
+        function updateTerrainPercent(selectedDate) {
+            if (!railTerrainPercent) return;
+
+            const conditionRow =
+                conditionsByKey.get(
+                    `${currentSeason}|${selectedDate}`
+                );
+
+            const seasonInfo =
+                seasonsData.find(
+                    row => row.season === currentSeason
+                );
+
+            if (!conditionRow || !seasonInfo) {
+                railTerrainPercent.textContent = '—%';
+                return;
+            }
+
+            const reportedAcres = Number(
+                getFirstValue(
+                    conditionRow,
+                    ['reported_acres', 'acres_open', 'acres']
+                )
+            );
+
+            const totalAcres = Number(
+                seasonInfo.total_terrain_acres
+            );
+
+            if (
+                !Number.isFinite(reportedAcres) ||
+                !Number.isFinite(totalAcres) ||
+                totalAcres <= 0
+            ) {
+                railTerrainPercent.textContent = '—%';
+                return;
+            }
+
+            const percent =
+                Math.round(
+                    (reportedAcres / totalAcres) * 100
+                );
+
+            railTerrainPercent.textContent =
+                `${percent}%`;
+        }
+
         function applyDate(selectedDate) {
             if (!selectedDate) return;
 
@@ -2455,7 +2601,9 @@ const [
 
             map.getSource('trails').setData(trailData);
             map.getSource('lifts').setData(liftData);
-
+            updateTrailStatusCounts();
+            updateLiftStatusCount();
+            updateTerrainPercent(selectedDate);
             if (railSliderDate) {
 
                 railSliderDate.textContent =
