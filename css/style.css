@@ -1917,15 +1917,6 @@ body {
         margin-bottom: 4px;
     }
 
-    .rail-terrain-status-title {
-        margin-bottom: 5px;
-
-        font-size: 10px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-    }
-
     .rail-terrain-status-row {
         display: flex;
         justify-content: space-between;
@@ -1961,4 +1952,14 @@ body {
 
 .rail-selected-date-title + .rail-conditions {
     margin-top: 5px;
+}
+
+.rail-selected-date-title,
+.rail-terrain-status-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+    text-decoration: underline;
+    text-underline-offset: 2px;
 }
