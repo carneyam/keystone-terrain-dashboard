@@ -14,7 +14,7 @@ on:
       - "requirements.txt"
 
   schedule:
-    - cron: "*/5 * * *"
+    - cron: "*/5 * * * *"
       #timezone: "America/Denver"
     
 
