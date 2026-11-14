@@ -1599,7 +1599,7 @@ const [
             acresChart.$isCurrentDate =
                 currentSeason === INITIAL_SEASON &&
                 selectedDate === latestLiveDate;
-                
+
             acresChart.$selectedDateValue = null;
 
             const markerDataset = acresChart.data.datasets.find(dataset => dataset.isMarker);
