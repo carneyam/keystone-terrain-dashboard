@@ -182,6 +182,64 @@ function getMountainTodayDate() {
             );
         }
 
+        const percentOfAveragePlugin = {
+            id: 'percentOfAverage',
+
+            afterDraw(chart) {
+                const { ctx, chartArea } = chart;
+
+                if (!chartArea) return;
+
+                const averageDataset =
+                    chart.data.datasets.find(dataset => dataset.isAverage);
+
+                const selectedDataset =
+                    chart.data.datasets.find(dataset => dataset.isSelected);
+
+                if (!averageDataset || !selectedDataset) return;
+
+                const index = chart.$selectedDateIndex;
+
+                if (!Number.isInteger(index) || index < 0) return;
+
+                const average = Number(averageDataset.data[index]);
+                const selected = Number(selectedDataset.data[index]);
+
+                const datePrefix =
+                    chart.$isCurrentDate
+                        ? 'Current date is'
+                        : 'Selected date is';
+
+                let label = `${datePrefix} — % of average`;
+
+                if (
+                    Number.isFinite(average) &&
+                    Number.isFinite(selected) &&
+                    average > 0
+                ) {
+                    const percent =
+                        Math.round((selected / average) * 100);
+
+                    label = `${datePrefix} ${percent}% of average`;
+                }
+
+                ctx.save();
+
+                ctx.font = '600 11px Arial';
+                ctx.fillStyle = '#111827';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+
+                ctx.fillText(
+                    label,
+                    chartArea.left + 8,
+                    chartArea.top + 38
+                );
+
+                ctx.restore();
+            }
+        };
+
 // Reporting slider is intentionally fixed at Oct 15-Apr 21.
 // Resort opening/closing labels still come from seasons.csv.
 function buildReportingDateRange(season) {
@@ -1172,7 +1230,7 @@ const [
                         selectedDateMarkerDataset
                     ]
                 },
-                plugins: [selectedDateGuidePlugin],
+                plugins: [selectedDateGuidePlugin, percentOfAveragePlugin],
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -1208,6 +1266,7 @@ const [
                                 }
                             }
                         },
+
                         tooltip: {
                             filter(context) {
                                 const dataset = context.dataset;
@@ -1278,6 +1337,11 @@ const [
             const selectedMonthDay = selectedDate.slice(5);
             const selectedIndex = chartMonthDayKeys.indexOf(selectedMonthDay);
             snowfallChart.$selectedDateIndex = selectedIndex;
+
+            snowfallChart.$isCurrentDate =
+                currentSeason === INITIAL_SEASON &&
+                selectedDate === latestLiveDate;
+
             snowfallChart.$selectedDateValue = null;
 
             const markerDataset = snowfallChart.data.datasets.find(dataset => dataset.isMarker);
@@ -1423,7 +1487,7 @@ const [
                         selectedDateMarkerDataset
                     ]
                 },
-                plugins: [selectedDateGuidePlugin],
+                plugins: [selectedDateGuidePlugin, percentOfAveragePlugin],
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -1531,6 +1595,11 @@ const [
             const selectedMonthDay = selectedDate.slice(5);
             const selectedIndex = chartMonthDayKeys.indexOf(selectedMonthDay);
             acresChart.$selectedDateIndex = selectedIndex;
+
+            acresChart.$isCurrentDate =
+                currentSeason === INITIAL_SEASON &&
+                selectedDate === latestLiveDate;
+                
             acresChart.$selectedDateValue = null;
 
             const markerDataset = acresChart.data.datasets.find(dataset => dataset.isMarker);
