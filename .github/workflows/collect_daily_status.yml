@@ -2,7 +2,7 @@ name: Collect Keystone Daily Status
 
 on:
   workflow_dispatch:
-  
+
   push:
     branches:
       - live_season_automation
@@ -13,9 +13,9 @@ on:
       - "data/live_name_crosswalk.csv"
       - "requirements.txt"
 
-schedule:
-  - cron: "7,37 9 * * *"
-    timezone: "America/Denver"
+  schedule:
+    - cron: "7,37 9 * * *"
+      timezone: "America/Denver"
 
 permissions:
   contents: write
