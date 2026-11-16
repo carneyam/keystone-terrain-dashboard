@@ -14,7 +14,7 @@ on:
       - "requirements.txt"
 
   schedule:
-  - cron: "7,09,37,52 * * * *"
+  - cron: "7,10,37,52 * * * *"
     timezone: "America/Denver"    
 
 permissions:
