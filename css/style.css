@@ -867,7 +867,7 @@ body {
     min-height: 220px;
 
    /* Extend rail downward into the single-day button row */
-    margin-bottom: -28px;
+    margin-bottom: -35px;
 
     z-index: 1;
 }
