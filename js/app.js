@@ -2010,8 +2010,6 @@ const [
 
                         closeMarker.style.display = '';
                         closeMarker.style.top = `${closePercent}%`;
-                        closeMarker.style.transform =
-                            'translateY(25px)';
                         
                         closeMarker.title =
                             `Resort closing: ${formatDate(
