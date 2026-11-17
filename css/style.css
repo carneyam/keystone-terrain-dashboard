@@ -850,7 +850,8 @@ body {
 }
 
 .date-rail-end {
-    margin-top: 32px;
+   position: relative;
+   top: 28px;
 }
 
 
