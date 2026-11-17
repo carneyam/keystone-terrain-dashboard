@@ -865,6 +865,11 @@ body {
     flex: 1;
 
     min-height: 220px;
+
+   /* Extend rail downward into the single-day button row */
+    margin-bottom: -28px;
+
+    z-index: 1;
 }
 
 .date-rail-track {
