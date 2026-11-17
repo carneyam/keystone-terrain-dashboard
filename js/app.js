@@ -2010,6 +2010,9 @@ const [
 
                         closeMarker.style.display = '';
                         closeMarker.style.top = `${closePercent}%`;
+                        closeMarker.style.transform =
+                            'translateY(18px)';
+                        
                         closeMarker.title =
                             `Resort closing: ${formatDate(
                                 seasonInfo.resort_close_date
