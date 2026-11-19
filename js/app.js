@@ -3148,7 +3148,7 @@ function updateLiftStatusCount() {
             updateTerrainPercent(selectedDate);
             if (railSliderDate) {
 
-                railSliderDate.textContent =
+                railSliderDate.innerHTML =
                     liveDatePrefix
                         ? `${liveDatePrefix}<br>${formatDate(selectedDate)}`
                         : formatDate(selectedDate);
@@ -3163,7 +3163,7 @@ function updateLiftStatusCount() {
 
                 railDateLabel.innerHTML =
                     liveDatePrefix
-                        ? `${liveDatePrefix} • ${formatDate(selectedDate)}`
+                        ? `${liveDatePrefix}<br>${formatDate(selectedDate)}`
                         : formatDate(selectedDate);
 
                 railDateLabel.classList.toggle(
