@@ -155,6 +155,24 @@ function formatDate(dateString, short = false) {
     });
 }
 
+function formatMonthDay(dateString) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString || '')) {
+        return '—';
+    }
+
+    const date =
+        new Date(`${dateString}T12:00:00Z`);
+
+    return date.toLocaleDateString(
+        'en-US',
+        {
+            month: 'short',
+            day: 'numeric',
+            timeZone: 'UTC'
+        }
+    );
+}
+
 function getMountainTodayDate() {
 
             const parts =
@@ -586,6 +604,34 @@ const [
             }
         ];
 
+        const HISTORICAL_AREA_AGGREGATE_RULES = [
+            {
+                areas: ['INDEPENDENCE BOWL'],
+                sourceName: 'INDEPENDENCE BOWL',
+                individualFromYear: 2025
+            },
+            {
+                areas: ['ERICKSON BOWL'],
+                sourceName: 'ERICKSON BOWL',
+                individualFromYear: 2025
+            },
+            {
+                areas: ['NORTH BOWL'],
+                sourceName: 'NORTH BOWL',
+                individualFromYear: 2025
+            },
+            {
+                areas: ['SOUTH BOWL'],
+                sourceName: 'SOUTH BOWL',
+                individualFromYear: 2025
+            },
+            {
+                areas: ['WINDOWS', 'THE WINDOWS'],
+                sourceName: 'THE WINDOWS',
+                individualFromYear: 2025
+            }
+        ];
+
         const LIFT_STATUS_TRAIL_NAMES = new Set([
             'MID STATION CARPET',
             'CADILLAC CARPET'
@@ -639,6 +685,38 @@ const [
                 }
             }
 
+            const areaName =
+                normalizeEntityName(
+                    properties.mountain_area
+                );
+            
+            const seasonYear =
+                getSeasonStartYear(season);
+            
+            const aggregateRule =
+                HISTORICAL_AREA_AGGREGATE_RULES.find(
+                    rule =>
+                        rule.areas.includes(areaName) &&
+                        seasonYear < rule.individualFromYear
+                );
+            
+            if (aggregateRule) {
+            
+                const sourceTrailId =
+                    trailIdByName.get(
+                        aggregateRule.sourceName
+                    );
+            
+                if (sourceTrailId) {
+                    return {
+                        type: 'trail',
+                        id: sourceTrailId,
+                        sourceName:
+                            aggregateRule.sourceName,
+                        borrowed: true
+                    };
+                }
+            }
             const aliasName = getHistoricalTrailAliasName(displayName, season);
 
             if (aliasName) {
@@ -840,18 +918,18 @@ const [
             }
 
         function getTrailFiveYearAverages(
-    trailProperties,
-    selectedSeason,
-    selectedDate
-) {
-    const selectedIndex =
-        AVAILABLE_SEASONS.indexOf(
-            selectedSeason
-        );
-
-    if (selectedIndex === -1) {
-        return null;
-    }
+            trailProperties,
+            selectedSeason,
+            selectedDate
+        ) {
+            const selectedIndex =
+                AVAILABLE_SEASONS.indexOf(
+                    selectedSeason
+                );
+        
+            if (selectedIndex === -1) {
+                return null;
+            }
 
     // Determine whether the trail has opened
     // during the selected season.
@@ -892,6 +970,38 @@ const [
                 selectedIndex + 1,
                 selectedIndex + 6
             );
+
+            const openingHistory =
+                seasons.map(season => {
+            
+                    let summary;
+            
+                    if (
+                        season === selectedSeason &&
+                        season === INITIAL_SEASON
+                    ) {
+                        summary = selectedSummary;
+                    } else {
+                        summary =
+                            getHistoricalTrailSummary(
+                                trailProperties,
+                                season
+                            );
+                    }
+            
+                    return {
+                        seasons,
+                        openingHistory,
+                    
+                        averageOpeningOffset:
+                            average(openingOffsets),
+                    
+                        averageDaysOpen:
+                            average(daysOpenValues),
+                    
+                        averageOpeningSnow:
+                            average(openingSnowValues)
+                    };
 
     // Days Open is a completed-season metric.
     // For the live season, always use the five prior seasons.
@@ -2579,10 +2689,56 @@ const [
                                     ? fiveYear.averageDaysOpen.toFixed(1)
                                     : '—'
                             }
+
+                            <div
+                                style="
+                                    margin-top: 7px;
+                                    padding-top: 5px;
+                                    border-top: 1px solid #eee;
+                                "
+                            >
+                                <strong style="font-size: 12px;">
+                                    Opening History
+                                </strong>
+                            
+                                <div
+                                    style="
+                                        margin-top: 3px;
+                                        font-size: 12px;
+                                    "
+                                >
+                                    ${openingHistoryHtml}
+                                </div>
+                            </div>
+
                         </div>
                     `
                     : '';
 
+            const openingHistoryHtml =
+                fiveYear?.openingHistory?.length
+                    ? fiveYear.openingHistory
+                        .map(item => `
+                            <div
+                                style="
+                                    display: flex;
+                                    justify-content: space-between;
+                                    gap: 14px;
+                                "
+                            >
+                                <span>
+                                    ${item.season.replace('-', '–')}
+                                </span>
+            
+                                <span>
+                                    ${formatMonthDay(
+                                        item.openingDate
+                                    )}
+                                </span>
+                            </div>
+                        `)
+                        .join('')
+                    : '';
 
             activePopup.popup.setHTML(`
                 <div style="min-width: 190px;">
