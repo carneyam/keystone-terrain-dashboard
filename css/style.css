@@ -1401,14 +1401,16 @@ body {
    -------------------------------------------------- */
 
 #rail-date-label {
-    max-width: none;
+    max-width: 100%;
 
     font-size: 13px;
     font-weight: 700;
     line-height: 1.15;
 
     text-align: right;
-    white-space: nowrap;
+
+    white-space: normal;
+    overflow-wrap: break-word;
 }
 
 #rail-date-label.current-date-selected,
