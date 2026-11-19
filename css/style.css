@@ -1970,3 +1970,7 @@ body {
     text-decoration: underline;
     text-underline-offset: 2px;
 }
+
+.mapboxgl-popup {
+    z-index: 1000 !important;
+}
