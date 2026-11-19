@@ -917,62 +917,106 @@ const [
                 };
             }
 
-        function getTrailFiveYearAverages(
-            trailProperties,
-            selectedSeason,
-            selectedDate
-        ) {
-            const selectedIndex =
-                AVAILABLE_SEASONS.indexOf(
-                    selectedSeason
-                );
-        
-            if (selectedIndex === -1) {
-                return null;
-            }
-
-    // Determine whether the trail has opened
-    // during the selected season.
-    let selectedSummary;
-
-    if (selectedSeason === INITIAL_SEASON) {
-        selectedSummary =
-            getLiveTrailAverageRecord(
+            function getTrailFiveYearAverages(
                 trailProperties,
+                selectedSeason,
                 selectedDate
-            );
-    } else {
-        selectedSummary =
-            getHistoricalTrailSummary(
-                trailProperties,
-                selectedSeason
-            );
-    }
-
-    const hasOpenedSelectedSeason =
-        Boolean(
-            selectedSummary &&
-            selectedSummary.opening_date
-        );
-
-    // AVAILABLE_SEASONS runs newest -> oldest.
-    //
-    // Opening Date and Season Snow at Opening:
-    // - If opened this season: selected season + previous 4
-    // - If not opened: previous 5 seasons
-    const seasons =
-        hasOpenedSelectedSeason
-            ? AVAILABLE_SEASONS.slice(
-                selectedIndex,
-                selectedIndex + 5
-            )
-            : AVAILABLE_SEASONS.slice(
-                selectedIndex + 1,
-                selectedIndex + 6
-            );
-
-            const openingHistory =
-                seasons.map(season => {
+            ) {
+                const selectedIndex =
+                    AVAILABLE_SEASONS.indexOf(
+                        selectedSeason
+                    );
+            
+                if (selectedIndex === -1) {
+                    return null;
+                }
+            
+                // Determine whether the trail has opened
+                // during the selected season.
+                let selectedSummary;
+            
+                if (selectedSeason === INITIAL_SEASON) {
+                    selectedSummary =
+                        getLiveTrailAverageRecord(
+                            trailProperties,
+                            selectedDate
+                        );
+                } else {
+                    selectedSummary =
+                        getHistoricalTrailSummary(
+                            trailProperties,
+                            selectedSeason
+                        );
+                }
+            
+                const hasOpenedSelectedSeason =
+                    Boolean(
+                        selectedSummary &&
+                        selectedSummary.opening_date
+                    );
+            
+                // AVAILABLE_SEASONS runs newest -> oldest.
+                //
+                // Opening Date and Season Snow at Opening:
+                // - If opened this season: selected season + previous 4
+                // - If not opened: previous 5 seasons
+                const seasons =
+                    hasOpenedSelectedSeason
+                        ? AVAILABLE_SEASONS.slice(
+                            selectedIndex,
+                            selectedIndex + 5
+                        )
+                        : AVAILABLE_SEASONS.slice(
+                            selectedIndex + 1,
+                            selectedIndex + 6
+                        );
+            
+                // Build the season-by-season opening history
+                // using the same seasons as the opening-date average.
+                const openingHistory =
+                    seasons.map(season => {
+            
+                        let summary;
+            
+                        if (
+                            season === selectedSeason &&
+                            season === INITIAL_SEASON
+                        ) {
+                            summary = selectedSummary;
+                        } else {
+                            summary =
+                                getHistoricalTrailSummary(
+                                    trailProperties,
+                                    season
+                                );
+                        }
+            
+                        return {
+                            season,
+                            openingDate:
+                                summary?.opening_date ?? ''
+                        };
+                    });
+            
+                // Days Open is a completed-season metric.
+                // For the live season, always use the five prior seasons.
+                const completedSeasonsForDaysOpen =
+                    selectedSeason === INITIAL_SEASON
+                        ? AVAILABLE_SEASONS.slice(
+                            selectedIndex + 1,
+                            selectedIndex + 6
+                        )
+                        : seasons;
+            
+                const openingOffsets = [];
+                const daysOpenValues = [];
+                const openingSnowValues = [];
+            
+                // --------------------------------------------------
+                // OPENING DATE + SNOWFALL AT OPENING
+                // --------------------------------------------------
+            
+                for (const season of seasons) {
             
                     let summary;
             
@@ -989,158 +1033,104 @@ const [
                             );
                     }
             
-                    return {
-                        seasons,
-                        openingHistory,
-                    
-                        averageOpeningOffset:
-                            average(openingOffsets),
-                    
-                        averageDaysOpen:
-                            average(daysOpenValues),
-                    
-                        averageOpeningSnow:
-                            average(openingSnowValues)
-                    };
-
-    // Days Open is a completed-season metric.
-    // For the live season, always use the five prior seasons.
-    const completedSeasonsForDaysOpen =
-        selectedSeason === INITIAL_SEASON
-            ? AVAILABLE_SEASONS.slice(
-                selectedIndex + 1,
-                selectedIndex + 6
-            )
-            : seasons;
-
-    const openingOffsets = [];
-    const daysOpenValues = [];
-    const openingSnowValues = [];
-
-
-    // --------------------------------------------------
-    // OPENING DATE + SNOWFALL AT OPENING
-    // --------------------------------------------------
-
-    for (const season of seasons) {
-
-        let summary;
-
-        if (
-            season === selectedSeason &&
-            season === INITIAL_SEASON
-        ) {
-            summary = selectedSummary;
-        } else {
-            summary =
-                getHistoricalTrailSummary(
-                    trailProperties,
-                    season
-                );
-        }
-
-        if (!summary) {
-            continue;
-        }
-
-
-        // Average opening date
-        if (summary.opening_date) {
-
-            const offset =
-                openingDateToSeasonOffset(
-                    summary.opening_date,
-                    season
-                );
-
-            if (Number.isFinite(offset)) {
-                openingOffsets.push(offset);
-            }
-        }
-
-
-        // Average season snowfall at opening
-        if (
-            summary.opening_season_to_date !== '' &&
-            summary.opening_season_to_date !== null &&
-            summary.opening_season_to_date !== undefined
-        ) {
-            const value =
-                Number(
-                    String(
-                        summary.opening_season_to_date
-                    )
-                        .replace(/,/g, '')
-                        .replace(/"/g, '')
-                        .trim()
-                );
-
-            if (Number.isFinite(value)) {
-                openingSnowValues.push(value);
-            }
-        }
-    }
-
-
-            // --------------------------------------------------
-            // DAYS OPEN
-            // --------------------------------------------------
-            // Use completed seasons only.
-            // Never include the active season.
-            // Exclude 2019-20 because of the COVID-shortened season.
-        
-            for (const season of completedSeasonsForDaysOpen) {
-        
-                if (season === '19-20') {
-                    continue;
+                    if (!summary) {
+                        continue;
+                    }
+            
+                    // Average opening date
+                    if (summary.opening_date) {
+            
+                        const offset =
+                            openingDateToSeasonOffset(
+                                summary.opening_date,
+                                season
+                            );
+            
+                        if (Number.isFinite(offset)) {
+                            openingOffsets.push(offset);
+                        }
+                    }
+            
+                    // Average season snowfall at opening
+                    if (
+                        summary.opening_season_to_date !== '' &&
+                        summary.opening_season_to_date !== null &&
+                        summary.opening_season_to_date !== undefined
+                    ) {
+                        const value =
+                            Number(
+                                String(
+                                    summary.opening_season_to_date
+                                )
+                                    .replace(/,/g, '')
+                                    .replace(/"/g, '')
+                                    .trim()
+                            );
+            
+                        if (Number.isFinite(value)) {
+                            openingSnowValues.push(value);
+                        }
+                    }
                 }
-        
-                const summary =
-                    getHistoricalTrailSummary(
-                        trailProperties,
-                        season
-                    );
-        
-                if (
-                    !summary ||
-                    summary.days_open === '' ||
-                    summary.days_open === null ||
-                    summary.days_open === undefined
-                ) {
-                    continue;
+            
+                // --------------------------------------------------
+                // DAYS OPEN
+                // --------------------------------------------------
+                // Use completed seasons only.
+                // Never include the active season.
+                // Exclude 2019-20 because of the COVID-shortened season.
+            
+                for (const season of completedSeasonsForDaysOpen) {
+            
+                    if (season === '19-20') {
+                        continue;
+                    }
+            
+                    const summary =
+                        getHistoricalTrailSummary(
+                            trailProperties,
+                            season
+                        );
+            
+                    if (
+                        !summary ||
+                        summary.days_open === '' ||
+                        summary.days_open === null ||
+                        summary.days_open === undefined
+                    ) {
+                        continue;
+                    }
+            
+                    const value =
+                        Number(summary.days_open);
+            
+                    if (Number.isFinite(value)) {
+                        daysOpenValues.push(value);
+                    }
                 }
-        
-                const value =
-                    Number(summary.days_open);
-        
-                if (Number.isFinite(value)) {
-                    daysOpenValues.push(value);
-                }
+            
+                const average = values =>
+                    values.length
+                        ? values.reduce(
+                            (sum, value) => sum + value,
+                            0
+                        ) / values.length
+                        : null;
+            
+                return {
+                    seasons,
+                    openingHistory,
+            
+                    averageOpeningOffset:
+                        average(openingOffsets),
+            
+                    averageDaysOpen:
+                        average(daysOpenValues),
+            
+                    averageOpeningSnow:
+                        average(openingSnowValues)
+                };
             }
-        
-        
-            const average = values =>
-                values.length
-                    ? values.reduce(
-                        (sum, value) => sum + value,
-                        0
-                    ) / values.length
-                    : null;
-        
-        
-            return {
-                seasons,
-        
-                averageOpeningOffset:
-                    average(openingOffsets),
-        
-                averageDaysOpen:
-                    average(daysOpenValues),
-        
-                averageOpeningSnow:
-                    average(openingSnowValues)
-            };
-        }
             
 
         // Normalize geometry attributes once.
@@ -2641,6 +2631,31 @@ const [
                     })`
                     : '';
 
+            const openingHistoryHtml =
+                fiveYear?.openingHistory?.length
+                    ? fiveYear.openingHistory
+                        .map(item => `
+                            <div
+                                style="
+                                    display: flex;
+                                    justify-content: space-between;
+                                    gap: 14px;
+                                "
+                            >
+                                <span>
+                                    ${item.season.replace('-', '–')}
+                                </span>
+            
+                                <span>
+                                    ${formatMonthDay(
+                                        item.openingDate
+                                    )}
+                                </span>
+                            </div>
+                        `)
+                        .join('')
+                    : '';
+            
             const fiveYearHtml =
                 fiveYear
                     ? `
@@ -2713,31 +2728,6 @@ const [
 
                         </div>
                     `
-                    : '';
-
-            const openingHistoryHtml =
-                fiveYear?.openingHistory?.length
-                    ? fiveYear.openingHistory
-                        .map(item => `
-                            <div
-                                style="
-                                    display: flex;
-                                    justify-content: space-between;
-                                    gap: 14px;
-                                "
-                            >
-                                <span>
-                                    ${item.season.replace('-', '–')}
-                                </span>
-            
-                                <span>
-                                    ${formatMonthDay(
-                                        item.openingDate
-                                    )}
-                                </span>
-                            </div>
-                        `)
-                        .join('')
                     : '';
 
             activePopup.popup.setHTML(`
