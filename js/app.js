@@ -3150,7 +3150,7 @@ function updateLiftStatusCount() {
 
                 railSliderDate.textContent =
                     liveDatePrefix
-                        ? `${liveDatePrefix} • ${formatDate(selectedDate)}`
+                        ? `${liveDatePrefix}<br>${formatDate(selectedDate)}`
                         : formatDate(selectedDate);
 
                 railSliderDate.classList.toggle(
@@ -3161,7 +3161,7 @@ function updateLiftStatusCount() {
 
             if (railDateLabel) {
 
-                railDateLabel.textContent =
+                railDateLabel.innerHTML =
                     liveDatePrefix
                         ? `${liveDatePrefix} • ${formatDate(selectedDate)}`
                         : formatDate(selectedDate);
