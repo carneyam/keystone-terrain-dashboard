@@ -665,57 +665,135 @@ const [
             }
         }
 
-        function getHistoricalTrailSummary(
-    trailProperties,
-    season
-) {
-    const source =
-        resolveTrailDataSource(
-            trailProperties,
-            season
-        );
-
-    // First try the historically resolved source
-    // such as Erickson Bowl, North Bowl, etc.
-    if (source.type === 'trail') {
-
-        const resolvedSummary =
-            trailSeasonSummaryLookup.get(
-                `${source.id}|${season}`
-            );
-
-        if (resolvedSummary?.opening_date) {
-            return resolvedSummary;
-        }
-    }
-
-    // Fallback:
-    // If the aggregate record is missing for a transition
-    // season, try the individual trail's own historical record.
-    const directTrailId =
-        trailProperties.trail_id;
-
-    if (directTrailId) {
-
-        const directSummary =
-            trailSeasonSummaryLookup.get(
-                `${directTrailId}|${season}`
-            );
-
-        if (directSummary?.opening_date) {
-            return directSummary;
-        }
-    }
-
-    return null;
-}
-
+        function resolveTrailDataSource(properties, season) {
+            const displayName =
+                normalizeEntityName(
+                    getTrailFeatureName(properties)
+                );
+        
+            // Carpet polygons use matching lift status.
+            if (LIFT_STATUS_TRAIL_NAMES.has(displayName)) {
+                const liftId =
+                    liftIdByName.get(displayName);
+        
+                if (liftId) {
+                    return {
+                        type: 'lift',
+                        id: liftId,
+                        sourceName:
+                            getTrailFeatureName(properties),
+                        borrowed: true
+                    };
+                }
+            }
+        
+            const areaName =
+                normalizeEntityName(
+                    properties.mountain_area
+                );
+        
+            const seasonYear =
+                getSeasonStartYear(season);
+        
+            const aggregateRule =
+                HISTORICAL_AREA_AGGREGATE_RULES.find(
+                    rule =>
+                        rule.areas.includes(areaName) &&
+                        seasonYear < rule.individualFromYear
+                );
+        
+            if (aggregateRule) {
+                const sourceTrailId =
+                    trailIdByName.get(
+                        aggregateRule.sourceName
+                    );
+        
+                if (sourceTrailId) {
+                    return {
+                        type: 'trail',
+                        id: sourceTrailId,
+                        sourceName:
+                            aggregateRule.sourceName,
+                        borrowed: true
+                    };
+                }
+            }
+        
+            const aliasName =
+                getHistoricalTrailAliasName(
+                    displayName,
+                    season
+                );
+        
+            if (aliasName) {
+                const sourceTrailId =
+                    trailIdByName.get(aliasName);
+        
+                if (sourceTrailId) {
+                    return {
+                        type: 'trail',
+                        id: sourceTrailId,
+                        sourceName:
+                            aliasName
+                                .toLowerCase()
+                                .replace(
+                                    /\b\w/g,
+                                    letter =>
+                                        letter.toUpperCase()
+                                ),
+                        borrowed: true
+                    };
+                }
+            }
+        
             return {
                 type: 'trail',
                 id: properties.trail_id,
-                sourceName: getTrailFeatureName(properties),
+                sourceName:
+                    getTrailFeatureName(properties),
                 borrowed: false
             };
+        }
+        
+        
+        function getHistoricalTrailSummary(
+            trailProperties,
+            season
+        ) {
+            const source =
+                resolveTrailDataSource(
+                    trailProperties,
+                    season
+                );
+        
+            // First try historical aggregate/alias source.
+            if (source.type === 'trail') {
+                const resolvedSummary =
+                    trailSeasonSummaryLookup.get(
+                        `${source.id}|${season}`
+                    );
+        
+                if (resolvedSummary?.opening_date) {
+                    return resolvedSummary;
+                }
+            }
+        
+            // Fallback to the individual trail record.
+            const directTrailId =
+                trailProperties.trail_id;
+        
+            if (directTrailId) {
+                const directSummary =
+                    trailSeasonSummaryLookup.get(
+                        `${directTrailId}|${season}`
+                    );
+        
+                if (directSummary?.opening_date) {
+                    return directSummary;
+                }
+            }
+        
+            return null;
         }
 
 // --------------------------------------------------
@@ -781,28 +859,6 @@ const [
                         day: 'numeric',
                         timeZone: 'UTC'
                     }
-                );
-            }
-
-
-            function getHistoricalTrailSummary(
-                trailProperties,
-                season
-            ) {
-                const source =
-                    resolveTrailDataSource(
-                        trailProperties,
-                        season
-                    );
-
-                if (source.type !== 'trail') {
-                    return null;
-                }
-
-                return (
-                    trailSeasonSummaryLookup.get(
-                        `${source.id}|${season}`
-                    ) ?? null
                 );
             }
 
