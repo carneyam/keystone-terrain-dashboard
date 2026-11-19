@@ -1972,3 +1972,57 @@ body {
 .mapboxgl-popup {
     z-index: 1000 !important;
 }
+
+/* --------------------------------------------------
+   MAP POPUPS
+-------------------------------------------------- */
+
+.mapboxgl-popup {
+    z-index: 1000 !important;
+}
+
+.mapboxgl-popup-content {
+    background: rgba(195, 201, 207, 0.98);
+
+    border: 1px solid rgba(37, 99, 235, 0.75);
+    border-radius: 10px;
+
+    box-shadow:
+        0 4px 14px rgba(0, 0, 0, 0.20);
+
+    padding: 16px 18px;
+}
+
+/* Match popup pointer to popup background */
+
+.mapboxgl-popup-anchor-top .mapboxgl-popup-tip {
+    border-bottom-color: rgba(195, 201, 207, 0.98);
+}
+
+.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+    border-top-color: rgba(195, 201, 207, 0.98);
+}
+
+.mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
+    border-right-color: rgba(195, 201, 207, 0.98);
+}
+
+.mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
+    border-left-color: rgba(195, 201, 207, 0.98);
+}
+
+.mapboxgl-popup-close-button {
+    font-size: 20px;
+    font-weight: 700;
+
+    color: #333;
+
+    padding: 5px 8px;
+
+    border-radius: 0 9px 0 6px;
+}
+
+.mapboxgl-popup-close-button:hover {
+    background: rgba(37, 99, 235, 0.10);
+    color: #2563eb;
+}
