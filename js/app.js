@@ -3354,9 +3354,22 @@ function updateLiftStatusCount() {
             const p = event.features[0].properties;
 
             const popup =
-                new mapboxgl.Popup()
+                new mapboxgl.Popup({
+                    offset: 15
+                })
                     .setLngLat(event.lngLat)
                     .addTo(map);
+
+            map.easeTo({
+                center: event.lngLat,
+                padding: {
+                    top: 80,
+                    right: 40,
+                    bottom: 330,
+                    left: 40
+                },
+                duration: 500
+            });
 
             activePopup = {
                 type: 'trail',
@@ -3382,9 +3395,22 @@ function updateLiftStatusCount() {
             const p = event.features[0].properties;
 
             const popup =
-                new mapboxgl.Popup()
+                new mapboxgl.Popup({
+                    offset: 15
+                })
                     .setLngLat(event.lngLat)
                     .addTo(map);
+
+            map.easeTo({
+                center: event.lngLat,
+                padding: {
+                    top: 80,
+                    right: 40,
+                    bottom: 330,
+                    left: 40
+                },
+                duration: 500
+            });
 
             activePopup = {
                 type: 'lift',
