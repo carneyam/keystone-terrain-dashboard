@@ -17,9 +17,9 @@ on:
     - cron: "7 8 * * *"
       timezone: "America/Denver"
 
-  schedule:
     - cron: "37 9 * * *"
       timezone: "America/Denver"
+      
 permissions:
   contents: write
 
